@@ -9,26 +9,39 @@ class HelloCog(commands.Cog):
 
     @app_commands.command(name="hello", description="Say hello!")
     async def hello(self, interaction: discord.Interaction):
-        await interaction.response.send_message(f"Hello, {interaction.user.mention}! 👋")
+        await interaction.response.send_message(
+            f"Hello, {interaction.user.mention}! 👋"
+        )
 
     @app_commands.command(name="dbtest", description="Test database connection")
     async def dbtest(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        
+
         try:
             # Acquire connection from pool
             async with self.bot.db_pool.acquire() as conn:
-                # Execute query
-                result = await conn.fetch('SELECT 1 FROM public.players')
+                # Get all players
+                result = await conn.fetch("SELECT * FROM public.players")
             # Connection automatically released back to pool
-            
+
             # Format and send result
             if result:
-                result_text = "\n".join([str(dict(row)) for row in result])
-                await interaction.followup.send(f"Query result:\n```\n{result_text}\n```")
+                # Show count
+                count = len(result)
+                result_text = f"Found {count} player(s):\n\n"
+
+                # Format each row
+                for row in result:
+                    row_dict = dict(row)
+                    result_text += "\n".join(
+                        [f"{key}: {value}" for key, value in row_dict.items()]
+                    )
+                    result_text += "\n" + "-" * 40 + "\n"
+
+                await interaction.followup.send(f"```\n{result_text}\n```")
             else:
-                await interaction.followup.send("Query returned no results.")
-                
+                await interaction.followup.send("No players found in database.")
+
         except Exception as e:
             await interaction.followup.send(f"Database error: {str(e)}")
 
