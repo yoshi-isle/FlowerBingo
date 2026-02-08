@@ -1,0 +1,19 @@
+{
+  "image_coords": {
+    "0": [680, 355],
+    "1": [680, 645],
+    "2": [1540, 355],
+    "3": [1540, 645]
+  },
+  "tilename_coords": {
+    "0": [118, 362],
+    "1": [118, 660],
+    "2": [985, 362],
+    "3": [985, 660]
+  },
+  "text_box_width": 520,
+  "base_font_size": 36,
+  "smaller_font_size": 26,
+  "thumbnail_size": [215, 215],
+  "line_spacing": 2
+}

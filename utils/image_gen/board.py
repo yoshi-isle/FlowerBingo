@@ -1,4 +1,5 @@
 import os
+import json
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 import base64
@@ -7,25 +8,24 @@ from utils.image_gen.wrap_text import wrap_text
 FONT_PATH = os.path.join(os.path.dirname(__file__), "Skranji-Regular.ttf")
 FONT_PATH = os.path.abspath(FONT_PATH)
 
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), "board_config.json")
+CONFIG_PATH = os.path.abspath(CONFIG_PATH)
+
 
 def generate_image(board):
     try:
-        image_coords = {
-            0: [680, 355],
-            1: [680, 645],
-            2: [1540, 355],
-            3: [1540, 645],
-        }
-        tilename_coords = {
-            0: [118, 362],
-            1: [118, 660],
-            2: [985, 362],
-            3: [985, 660],
-        }
-        TEXT_BOX_WIDTH = 520
+        # Load config from file each time
+        with open(CONFIG_PATH, "r") as f:
+            CONFIG = json.load(f)
 
-        base_font_size = 36
-        smaller_font_size = 26
+        # Load config values
+        image_coords = {int(k): v for k, v in CONFIG["image_coords"].items()}
+        tilename_coords = {int(k): v for k, v in CONFIG["tilename_coords"].items()}
+        TEXT_BOX_WIDTH = CONFIG["text_box_width"]
+        base_font_size = CONFIG["base_font_size"]
+        smaller_font_size = CONFIG["smaller_font_size"]
+        thumbnail_size = tuple(CONFIG["thumbnail_size"])
+        line_spacing = CONFIG["line_spacing"]
         background_filepath = os.path.join(os.path.dirname(__file__), "sample-bg.png")
         background_filepath = os.path.abspath(background_filepath)
         with Image.open(background_filepath) as base_img:
@@ -36,7 +36,7 @@ def generate_image(board):
                 img_base64 = tile["image_data"]
                 img_data = base64.b64decode(img_base64)
                 tile_img = Image.open(BytesIO(img_data))
-                tile_img.thumbnail((215, 215), Image.LANCZOS)
+                tile_img.thumbnail(thumbnail_size, Image.LANCZOS)
                 base_img.paste(
                     tile_img,
                     (image_coords[i][0], image_coords[i][1]),
@@ -63,7 +63,7 @@ def generate_image(board):
                         font=smaller_font,
                         fill=(50, 50, 50),
                     )
-                    y_offset += smaller_font_size + 2
+                    y_offset += smaller_font_size + line_spacing
 
             base_img = base_img.convert("RGBA")
             img_io = BytesIO()
