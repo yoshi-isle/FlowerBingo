@@ -2,6 +2,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+
 from utils.register_team import register_team
 
 
@@ -126,6 +127,25 @@ class AdminCog(commands.Cog):
                 rows = await conn.fetch("SELECT team_name FROM public.teams")
                 team_list = [row["team_name"] for row in rows]
             await interaction.followup.send(f"Teams:\n- {', \n- '.join(team_list)}")
+        except Exception as e:
+            await interaction.followup.send(f"Database error: {str(e)}")
+
+    @app_commands.command(
+        name="admin_clear_all", description="(TESTING ONLY) Clear all data"
+    )
+    async def admin_clear_all(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        try:
+            async with self.bot.db_pool.acquire() as conn:
+                # Clear everything
+                await conn.fetch("DELETE from public.teams")
+                await conn.fetch("DELETE from public.tile_assignments")
+                await conn.fetch("DELETE from public.tile_submissions")
+                await conn.fetch("DELETE from public.players")
+
+                # Clear every message in this channel, too
+                await interaction.channel.purge(limit=100)
+            await interaction.followup.send("All bingo data has been cleared.")
         except Exception as e:
             await interaction.followup.send(f"Database error: {str(e)}")
 
