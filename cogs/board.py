@@ -17,7 +17,6 @@ class BoardCog(commands.Cog):
         try:
             async with self.bot.db_pool.acquire() as conn:
                 board = await get_team_board(conn, str(interaction.user.id))
-                print("generating...")
                 img = await asyncio.to_thread(generate_image, board)
                 await interaction.followup.send(
                     file=discord.File(img, filename="board.png")

@@ -1,9 +1,9 @@
 import discord
-from discord.ext import commands
 import os
 import asyncio
 import asyncpg
 from dotenv import load_dotenv
+from discord.ext import commands
 
 load_dotenv()
 
@@ -16,13 +16,14 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 async def on_ready():
     print(f"{bot.user} has connected to Discord!")
     print(f"Loaded {len(bot.cogs)} cog(s)")
-    # Sync slash commands
     await bot.tree.sync()
     print("Slash commands synced")
 
 
 async def create_db_pool():
-    """Create database connection pool"""
+    """
+    Create PostgreSQL async database connection pool
+    """
     bot.db_pool = await asyncpg.create_pool(
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASSWORD"),

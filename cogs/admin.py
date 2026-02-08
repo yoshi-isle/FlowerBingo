@@ -2,6 +2,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from utils.register_team import register_team
+
 
 class ConfirmView(discord.ui.View):
     def __init__(self, timeout=60):
@@ -43,12 +45,10 @@ class AdminCog(commands.Cog):
 
         try:
             async with self.bot.db_pool.acquire() as conn:
-                await conn.execute(
-                    "INSERT INTO public.teams (team_name) VALUES ($1)", team_name
-                )
+                team_id = await register_team(conn, team_name)
 
             await interaction.followup.send(
-                f"Team '{team_name}' has been registered by {interaction.user.mention}."
+                f"Team '{team_name}' (ID: {team_id}) has been registered with 4 random tiles by {interaction.user.mention}."
             )
         except Exception as e:
             await interaction.followup.send(f"Database error: {str(e)}")
