@@ -3,13 +3,44 @@ from discord import app_commands
 from discord.ext import commands
 
 
+class ConfirmView(discord.ui.View):
+    def __init__(self, timeout=60):
+        super().__init__(timeout=timeout)
+        self.value = None
+
+    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
+    async def confirm(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
+        self.value = True
+        self.stop()
+        await interaction.response.defer()
+
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.value = False
+        self.stop()
+        await interaction.response.edit_message(content="Action cancelled.", view=None)
+
+
 class AdminCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
     @app_commands.command(name="admin_make_team", description="Register a new team")
     async def admin_make_team(self, interaction: discord.Interaction, team_name: str):
-        await interaction.response.defer()
+        # Show confirmation dialog
+        view = ConfirmView()
+        await interaction.response.send_message(
+            f"Are you sure you want to create team '{team_name}'?",
+            view=view,
+            ephemeral=True,
+        )
+        await view.wait()
+
+        if not view.value:
+            return
+
         try:
             async with self.bot.db_pool.acquire() as conn:
                 await conn.execute(
@@ -46,7 +77,18 @@ class AdminCog(commands.Cog):
     async def admin_register_player(
         self, interaction: discord.Interaction, player: discord.User, team_name: str
     ):
-        await interaction.response.defer()
+        # Show confirmation dialog
+        view = ConfirmView()
+        await interaction.response.send_message(
+            f"Are you sure you want to register {player.mention} to team '{team_name}'?",
+            view=view,
+            ephemeral=True,
+        )
+        await view.wait()
+
+        if not view.value:
+            return
+
         try:
             async with self.bot.db_pool.acquire() as conn:
                 # Get team_id from team_name
