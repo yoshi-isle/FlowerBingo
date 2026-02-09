@@ -2,9 +2,7 @@ from discord import Color, Embed
 import discord
 
 
-def get_submission_embed(
-    interaction: discord.Interaction, image: discord.File, tile, team
-) -> tuple:
+def get_submission_embed(interaction: discord.Interaction, tile, team) -> tuple:
     receipt_embed = Embed(title="", colour=Color.yellow())
     receipt_embed.set_author(
         name=f"Tile Submission by {interaction.user.display_name}",
