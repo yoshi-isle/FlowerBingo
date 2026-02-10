@@ -6,9 +6,9 @@ from discord.ext import commands
 
 from embeds.board import get_board_embed
 from embeds.submission import get_submission_embed
-from utils.create_submission import create_submission
 from utils.get_team_record import get_team_record
 from utils.get_team_tiles import get_team_tiles
+from utils.get_tile_by_category import get_tile_assignment_by_category
 from utils.image_gen.board import generate_image
 
 
@@ -64,15 +64,26 @@ class PlayerCog(commands.Cog):
     @app_commands.command(name="submit", description="Submit a tile")
     @app_commands.autocomplete(option=submit_autocomplete)
     async def submit(self, interaction: discord.Interaction, option: int):
-        team = await get_team_record(interaction.user.id)
-        submission_embed = get_submission_embed(interaction, option, team)
-        admin_channel = self.bot.get_channel(
-            int(os.getenv("PENDING_SUBMISSIONS_CHANNEL_ID"))
-        )
-        await admin_channel.send(embed=submission_embed)
-        # get the tile id from the option
-        await create_submission(self.bot.db_pool, interaction.user.id, option)
-        pass
+        team = await get_team_record(self.bot.db_pool, interaction.user.id)
+        tile = await get_tile_assignment_by_category(self.bot.db_pool, team_id=team["id"], category=option)
+
+        __submission_channel_id = os.getenv("PENDING_SUBMISSIONS_CHANNEL_ID")
+        __player_channel_id = team["discord_channel_id"]
+        
+        # Get the relevant channels
+        player_team_channel = self.bot.get_channel(int(__player_channel_id))
+        admin_channel = self.bot.get_channel(int(__submission_channel_id))
+
+        receipt_embed, submission_embed = get_submission_embed(interaction, tile, team)
+
+        __player_embed_message = await player_team_channel.send(embed=receipt_embed)
+        __admin_embed_message = await admin_channel.send(embed=submission_embed)
+
+        # Add reactions to admin embed
+        await __admin_embed_message.add_reaction("✅")
+        await __admin_embed_message.add_reaction("❌")
+
+        await interaction.response.send_message("Your submission has been sent! ✅ Please wait for an admin to approve.", ephemeral=True)
 
 
 async def setup(bot):

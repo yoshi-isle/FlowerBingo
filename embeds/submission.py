@@ -8,7 +8,6 @@ def get_submission_embed(interaction: discord.Interaction, tile, team) -> tuple:
         name=f"Tile Submission by {interaction.user.display_name}",
         icon_url=interaction.user.display_avatar.url,
     )
-    receipt_embed.set_image(url=image.url)
     receipt_embed.add_field(
         name="Status", value="🟡 Waiting for approval", inline=False
     )
