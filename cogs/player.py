@@ -85,6 +85,25 @@ class PlayerCog(commands.Cog):
 
         await interaction.response.send_message("Your submission has been sent! ✅ Please wait for an admin to approve.", ephemeral=True)
 
+    @app_commands.command(name="explain", description="Explain what counts for a tile")
+    @app_commands.autocomplete(option=submit_autocomplete)
+    async def explain(self, interaction: discord.Interaction, option: int):
+        # TODO - Proof of concept
+
+        embed = discord.Embed(title="3 Different Moons Equipment",
+                      colour=0xffffff)
+
+        embed.add_field(name="OSRS Wiki Link",
+                        value="https://oldschool.runescape.wiki/w/Lunar_Chest",
+                        inline=False)
+        embed.add_field(name="What counts for this tile?",
+                        value="Any (3) different pieces of Moons Equipment. Eclipse atlatl, Eclipse moon helm, Eclipse moon chestplate, Eclipse moon tassets, Dual macuahuitl, Blood moon helm, Blood moon chestplate, Blood moon tassets, Blue moon spear, Blue moon helm, Blue moon chestplate, Blue moon tassets",
+                        inline=False)
+
+        embed.set_thumbnail(url="https://oldschool.runescape.wiki/images/Cake_of_guidance.png?de576")
+
+        await interaction.response.send_message(embed=embed)
+
 
 async def setup(bot):
     await bot.add_cog(PlayerCog(bot))
