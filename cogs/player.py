@@ -6,9 +6,11 @@ from discord.ext import commands
 
 from embeds.board import get_board_embed
 from embeds.submission import get_submission_embed
+from utils.create_submission import create_submission
+from utils.get_assignment import get_assignment
 from utils.get_team_record import get_team_record
 from utils.get_team_tiles import get_team_tiles
-from utils.get_tile_by_category import get_tile_assignment_by_category
+from utils.get_tile_definition import get_tile_definition
 from utils.image_gen.board import generate_image
 
 
@@ -65,11 +67,13 @@ class PlayerCog(commands.Cog):
     @app_commands.autocomplete(option=submit_autocomplete)
     async def submit(self, interaction: discord.Interaction, option: int):
         team = await get_team_record(self.bot.db_pool, interaction.user.id)
-        tile = await get_tile_assignment_by_category(self.bot.db_pool, team_id=team["id"], category=option)
+        tile = await get_tile_definition(
+            conn=self.bot.db_pool, team_id=team["id"], category=option
+        )
 
         __submission_channel_id = os.getenv("PENDING_SUBMISSIONS_CHANNEL_ID")
         __player_channel_id = team["discord_channel_id"]
-        
+
         # Get the relevant channels
         player_team_channel = self.bot.get_channel(int(__player_channel_id))
         admin_channel = self.bot.get_channel(int(__submission_channel_id))
@@ -79,28 +83,44 @@ class PlayerCog(commands.Cog):
         __player_embed_message = await player_team_channel.send(embed=receipt_embed)
         __admin_embed_message = await admin_channel.send(embed=submission_embed)
 
+        await create_submission(
+            conn=self.bot.db_pool,
+            discord_id=interaction.user.id,
+            category=option,
+            player_embed_id=__player_embed_message.id,
+            admin_embed_id=__admin_embed_message.id,
+        )
+
         # Add reactions to admin embed
         await __admin_embed_message.add_reaction("✅")
         await __admin_embed_message.add_reaction("❌")
 
-        await interaction.response.send_message("Your submission has been sent! ✅ Please wait for an admin to approve.", ephemeral=True)
+        await interaction.response.send_message(
+            "Your submission has been sent! ✅ Please wait for an admin to approve.",
+            ephemeral=True,
+        )
 
     @app_commands.command(name="explain", description="Explain what counts for a tile")
     @app_commands.autocomplete(option=submit_autocomplete)
     async def explain(self, interaction: discord.Interaction, option: int):
         # TODO - Proof of concept
 
-        embed = discord.Embed(title="3 Different Moons Equipment",
-                      colour=0xffffff)
+        embed = discord.Embed(title="3 Different Moons Equipment", colour=0xFFFFFF)
 
-        embed.add_field(name="OSRS Wiki Link",
-                        value="https://oldschool.runescape.wiki/w/Lunar_Chest",
-                        inline=False)
-        embed.add_field(name="What counts for this tile?",
-                        value="Any (3) different pieces of Moons Equipment. Eclipse atlatl, Eclipse moon helm, Eclipse moon chestplate, Eclipse moon tassets, Dual macuahuitl, Blood moon helm, Blood moon chestplate, Blood moon tassets, Blue moon spear, Blue moon helm, Blue moon chestplate, Blue moon tassets",
-                        inline=False)
+        embed.add_field(
+            name="OSRS Wiki Link",
+            value="https://oldschool.runescape.wiki/w/Lunar_Chest",
+            inline=False,
+        )
+        embed.add_field(
+            name="What counts for this tile?",
+            value="Any (3) different pieces of Moons Equipment. Eclipse atlatl, Eclipse moon helm, Eclipse moon chestplate, Eclipse moon tassets, Dual macuahuitl, Blood moon helm, Blood moon chestplate, Blood moon tassets, Blue moon spear, Blue moon helm, Blue moon chestplate, Blue moon tassets",
+            inline=False,
+        )
 
-        embed.set_thumbnail(url="https://oldschool.runescape.wiki/images/Cake_of_guidance.png?de576")
+        embed.set_thumbnail(
+            url="https://oldschool.runescape.wiki/images/Cake_of_guidance.png?de576"
+        )
 
         await interaction.response.send_message(embed=embed)
 

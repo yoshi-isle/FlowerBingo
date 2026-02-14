@@ -10,4 +10,3 @@ dependencies:
     - python-dotenv>=1.0.0
     - asyncpg>=0.29.0
     - pillow>=9.0.0
-    - rapidfuzz
