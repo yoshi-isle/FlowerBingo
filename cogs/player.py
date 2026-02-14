@@ -7,7 +7,6 @@ from discord.ext import commands
 from embeds.board import get_board_embed
 from embeds.submission import get_submission_embed
 from utils.create_submission import create_submission
-from utils.get_assignment import get_assignment
 from utils.get_team_record import get_team_record
 from utils.get_team_tiles import get_team_tiles
 from utils.get_tile_definition import get_tile_definition
@@ -24,6 +23,21 @@ class PlayerCog(commands.Cog):
         try:
             async with self.bot.db_pool.acquire() as conn:
                 team = await get_team_record(conn, str(interaction.user.id))
+
+                # Guard - no team found for the player
+                if not team:
+                    await interaction.edit_original_response(
+                        content="Looks like you're not part of any team. Please contact an admin."
+                    )
+                    return
+
+                # Guard - wrong channel
+                if int(team["discord_channel_id"]) != interaction.channel_id:
+                    await interaction.edit_original_response(
+                        content="You can only use `/board` in your team's channel."
+                    )
+                    return
+
                 board = await get_team_tiles(conn, team["id"])
 
                 img = await asyncio.to_thread(generate_image, board)
@@ -43,6 +57,8 @@ class PlayerCog(commands.Cog):
     ) -> list[app_commands.Choice[int]]:
         try:
             team = await get_team_record(self.bot.db_pool, str(interaction.user.id))
+            if not team:
+                return []
             tiles = await get_team_tiles(self.bot.db_pool, team["id"])
 
             choices = []
@@ -67,6 +83,19 @@ class PlayerCog(commands.Cog):
     @app_commands.autocomplete(option=submit_autocomplete)
     async def submit(self, interaction: discord.Interaction, option: int):
         team = await get_team_record(self.bot.db_pool, interaction.user.id)
+        if not team:
+            await interaction.response.send_message(
+                "Looks like you're not part of any team. Please contact an admin."
+            )
+            return
+
+        # Guard - wrong channel
+        if int(team["discord_channel_id"]) != interaction.channel_id:
+            await interaction.response.send_message(
+                content="You can only use `/submit` in your team's channel."
+            )
+            return
+
         tile = await get_tile_definition(
             conn=self.bot.db_pool, team_id=team["id"], category=option
         )
@@ -103,18 +132,39 @@ class PlayerCog(commands.Cog):
     @app_commands.command(name="explain", description="Explain what counts for a tile")
     @app_commands.autocomplete(option=submit_autocomplete)
     async def explain(self, interaction: discord.Interaction, option: int):
-        # TODO - Proof of concept
 
-        embed = discord.Embed(title="3 Different Moons Equipment", colour=0xFFFFFF)
+        # Guard - not signed up
+        team = await get_team_record(self.bot.db_pool, interaction.user.id)
+        if not team:
+            await interaction.response.send_message(
+                "Looks like you're not part of any team. Please contact an admin."
+            )
+            return
+
+        # Guard - wrong channel
+        if int(team["discord_channel_id"]) != interaction.channel_id:
+            await interaction.response.send_message(
+                content="You can only use `/explain` in your team's channel."
+            )
+            return
+
+        # Get tile
+        tile = await get_tile_definition(self.bot.db_pool, team["id"], option)
+        if not tile:
+            await interaction.response.send_message(
+                "Error getting the tile information. Please contact an admin."
+            )
+
+        embed = discord.Embed(title=tile["tile_name"], colour=0xFFFFFF)
 
         embed.add_field(
             name="OSRS Wiki Link",
-            value="https://oldschool.runescape.wiki/w/Lunar_Chest",
+            value=tile["wiki_url"],
             inline=False,
         )
         embed.add_field(
             name="What counts for this tile?",
-            value="Any (3) different pieces of Moons Equipment. Eclipse atlatl, Eclipse moon helm, Eclipse moon chestplate, Eclipse moon tassets, Dual macuahuitl, Blood moon helm, Blood moon chestplate, Blood moon tassets, Blue moon spear, Blue moon helm, Blue moon chestplate, Blue moon tassets",
+            value=tile["eligible_drops"],
             inline=False,
         )
 

@@ -3,56 +3,29 @@ from discord import app_commands
 from discord.ext import commands
 
 
+from utils.get_team_record import get_team_record
 from utils.register_team import register_team
-
-
-class ConfirmView(discord.ui.View):
-    def __init__(self, timeout=60):
-        super().__init__(timeout=timeout)
-        self.value = None
-
-    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
-    async def confirm(
-        self, interaction: discord.Interaction, button: discord.ui.Button
-    ):
-        self.value = True
-        self.stop()
-        await interaction.response.defer()
-
-    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
-    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.value = False
-        self.stop()
-        await interaction.response.edit_message(content="Action cancelled.", view=None)
 
 
 class AdminCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="admin_make_team", description="Register a new team")
-    async def admin_make_team(self, interaction: discord.Interaction, team_name: str):
-        # Show confirmation dialog
-        view = ConfirmView()
-        await interaction.response.send_message(
-            f"Are you sure you want to create team '{team_name}'?",
-            view=view,
-            ephemeral=True,
-        )
-        await view.wait()
-
-        if not view.value:
-            return
-
+    @app_commands.command(
+        name="admin_register_team", description="Register a new team (IN THIS CHANNEL)"
+    )
+    async def admin_register_team(
+        self, interaction: discord.Interaction, team_name: str
+    ):
         try:
             async with self.bot.db_pool.acquire() as conn:
-                team_id = await register_team(conn, team_name)
+                team_id = await register_team(conn, team_name, interaction.channel_id)
 
-            await interaction.followup.send(
-                f"Team '{team_name}' (ID: {team_id}) has been registered with 4 random tiles by {interaction.user.mention}."
+            await interaction.response.send_message(
+                f"Team '{team_name}' (ID: {team_id}) has been registered with 4 random tiles by {interaction.user.mention}. This channel ID {interaction.channel_id} is used in their team record."
             )
         except Exception as e:
-            await interaction.followup.send(f"Database error: {str(e)}")
+            await interaction.response.send_message(f"Database error: {str(e)}")
 
     async def team_autocomplete(self, interaction: discord.Interaction, current: str):
         """
@@ -78,18 +51,6 @@ class AdminCog(commands.Cog):
     async def admin_register_player(
         self, interaction: discord.Interaction, player: discord.User, team_name: str
     ):
-        # Show confirmation dialog
-        view = ConfirmView()
-        await interaction.response.send_message(
-            f"Are you sure you want to register {player.mention} to team '{team_name}'?",
-            view=view,
-            ephemeral=True,
-        )
-        await view.wait()
-
-        if not view.value:
-            return
-
         try:
             async with self.bot.db_pool.acquire() as conn:
                 # Get team_id from team_name
@@ -98,23 +59,59 @@ class AdminCog(commands.Cog):
                 )
 
                 if not team_row:
-                    await interaction.followup.send(f"Team '{team_name}' not found.")
+                    await interaction.response.send_message(
+                        f"Team '{team_name}' not found."
+                    )
+                    return
+
+                existing_team = await get_team_record(conn, str(player))
+                if existing_team:
+                    await interaction.response.send_message(
+                        f"That player is already on a team: {existing_team['team_name']}"
+                    )
                     return
 
                 team_id = team_row["id"]
 
                 # Insert player into database
                 await conn.execute(
-                    "INSERT INTO public.players (discord_id, team_id) VALUES ($1, $2)",
+                    "INSERT INTO public.players (discord_id, team_id, created_at) VALUES ($1, $2, NOW())",
                     str(player.id),
                     team_id,
                 )
 
-            await interaction.followup.send(
+            await interaction.response.send_message(
                 f"Player {player.mention} has been registered to team '{team_name}'."
             )
         except Exception as e:
-            await interaction.followup.send(f"Database error: {str(e)}")
+            await interaction.response.send_message(f"Database error: {str(e)}")
+
+    @app_commands.command(
+        name="admin_unregister_player", description="Removes a player from their team"
+    )
+    async def admin_unregister_player(
+        self, interaction: discord.Interaction, player: discord.User
+    ):
+        try:
+            async with self.bot.db_pool.acquire() as conn:
+                existing_team = await get_team_record(conn, str(player.id))
+                if not existing_team:
+                    await interaction.response.send_message(
+                        "That player is not on any team."
+                    )
+                    return
+
+                # Remove player from database
+                await conn.execute(
+                    "DELETE FROM public.players WHERE discord_id = $1",
+                    str(player.id),
+                )
+
+            await interaction.response.send_message(
+                f"Player {player.mention} has been unregistered from  their team '{existing_team['team_name']}'."
+            )
+        except Exception as e:
+            await interaction.response.send_message(f"Database error: {str(e)}")
 
     @app_commands.command(
         name="admin_get_team_list", description="Get the list of all teams"
@@ -123,10 +120,34 @@ class AdminCog(commands.Cog):
         await interaction.response.defer()
         try:
             async with self.bot.db_pool.acquire() as conn:
-                # Retrieve all teams from database
-                rows = await conn.fetch("SELECT team_name FROM public.teams")
-                team_list = [row["team_name"] for row in rows]
-            await interaction.followup.send(f"Teams:\n- {', \n- '.join(team_list)}")
+                # Retrieve all teams with their players
+                rows = await conn.fetch(
+                    """SELECT t.team_name, p.discord_id 
+                       FROM public.teams t 
+                       LEFT JOIN public.players p ON t.id = p.team_id 
+                       ORDER BY t.team_name"""
+                )
+
+            teams_dict = {}
+            for row in rows:
+                team_name = row["team_name"]
+                discord_id = row["discord_id"]
+
+                if team_name not in teams_dict:
+                    teams_dict[team_name] = []
+
+                if discord_id:
+                    try:
+                        user = await self.bot.fetch_user(int(discord_id))
+                        teams_dict[team_name].append(user.display_name)
+                    except Exception:
+                        teams_dict[team_name].append(f"Unknown ({discord_id})")
+
+            team_list = [
+                f"{team}: {', '.join(players) if players else 'No players'}"
+                for team, players in teams_dict.items()
+            ]
+            await interaction.followup.send(f"Teams:\n- " + "\n- ".join(team_list))
         except Exception as e:
             await interaction.followup.send(f"Database error: {str(e)}")
 

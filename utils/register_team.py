@@ -32,14 +32,13 @@ async def assign_random_tile(conn: asyncpg.Connection, team_id: int, category: i
     tile_assignment = await conn.fetchrow(
         """
         INSERT INTO public.tile_assignments 
-        (team_id, tile_id, is_active, prestige_number, category, remaining_submissions)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        (team_id, tile_id, is_active, category, remaining_submissions, created_at)
+        VALUES ($1, $2, $3, $4, $5, NOW())
         RETURNING *
         """,
         team_id,
         tile["id"],
         True,
-        0,
         tile["category"],
         tile["completion_counter"],
     )
@@ -47,12 +46,14 @@ async def assign_random_tile(conn: asyncpg.Connection, team_id: int, category: i
     return tile_assignment
 
 
-async def register_team(conn: asyncpg.Connection, team_name: str):
+async def register_team(conn: asyncpg.Connection, team_name: str, channel_id: int):
     """Register a new team and assign 4 random tiles (one for each category)"""
     try:
         # Insert the team and get the ID
         team = await conn.fetchrow(
-            "INSERT INTO public.teams (team_name) VALUES ($1) RETURNING id", team_name
+            "INSERT INTO public.teams (team_name, discord_channel_id, created_at) VALUES ($1, $2, NOW()) RETURNING id",
+            team_name,
+            str(channel_id),
         )
         team_id = team["id"]
 

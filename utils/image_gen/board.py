@@ -50,7 +50,12 @@ def generate_image(board):
                     fill=(0, 0, 0),
                 )
 
-                description = tile.get("description", "Unknown Tile Name")
+                description = tile.get("description", "")
+
+                # Empty description fix for when it's "" empty string
+                if not description:
+                    description = "No description provided."
+                
                 wrapped_lines = wrap_text(
                     description, smaller_font, TEXT_BOX_WIDTH, draw
                 )
