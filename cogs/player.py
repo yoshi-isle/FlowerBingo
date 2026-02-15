@@ -1,17 +1,15 @@
-import asyncio
 import os
 import discord
 from discord import app_commands
 from discord.ext import commands
 
 from constants import Emojis
-from embeds.board import get_board_embed
 from embeds.submission import get_submission_embed
+from utils.get_board_payload import get_board_payload
 from utils.create_submission import create_submission
 from utils.get_team_record import get_team_record
 from utils.get_team_tiles import get_team_tiles
 from utils.get_tile_definition import get_tile_definition
-from utils.image_gen.board import generate_image
 
 
 class PlayerCog(commands.Cog):
@@ -39,18 +37,18 @@ class PlayerCog(commands.Cog):
                     )
                     return
 
-                board = await get_team_tiles(conn, team["id"])
-
-                img = await asyncio.to_thread(generate_image, board)
-                team_embed = get_board_embed(team, board)
-
-                file = discord.File(fp=img, filename="board.png")
+                team_embed, file = await get_board_payload(
+                    conn,
+                    team["id"],
+                    team=team,
+                )
                 await interaction.edit_original_response(
                     embed=team_embed, attachments=[file]
                 )
         except Exception as e:
+            print(f"Error getting board for {interaction.user.display_name}", e)
             await interaction.edit_original_response(
-                content=f"Error getting your board: {e}"
+                content="Error getting your board. Please contact an admin"
             )
 
     async def submit_autocomplete(

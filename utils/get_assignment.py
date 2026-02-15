@@ -4,7 +4,6 @@ import asyncpg
 async def get_assignment(conn: asyncpg.Connection, team_id: int, category: int):
     """
     Assignment = team's individual progress. "How many remain"
-    Tile = Raw data for the tile
     """
     try:
         assignment = await conn.fetchrow(

@@ -3,7 +3,7 @@ from discord import Embed
 from constants import Emojis
 
 
-def get_board_embed(team, board):
+def get_board_embed(team, board, points):
     embed = Embed(title=team["team_name"])
 
     embed.color = 0x00FF00
@@ -14,7 +14,7 @@ def get_board_embed(team, board):
 
     embed.add_field(
         name=f"{Emojis.HIGHSCORES} 1st place",
-        value="70 points",
+        value="",
         inline=False,
     )
     embed.add_field(
