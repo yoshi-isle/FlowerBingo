@@ -103,7 +103,7 @@ class ApprovalCog(commands.Cog):
                     await team_channel.send(embed=team_embed, file=file)
             else:
                 await team_channel.send(
-                    f"Tile progress updated. You still need {remaining_submissions}."
+                    f"Your team made progress on the tile. You still need {remaining_submissions}."
                 )
 
         await self._update_admin_message(
