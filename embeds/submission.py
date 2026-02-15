@@ -40,11 +40,6 @@ def get_submission_embed(interaction: discord.Interaction, tile, team) -> tuple:
         value=f"{team['team_name']} {interaction.channel.jump_url}\n",
         inline=False,
     )
-    admin_receipt.add_field(
-        name="Instructions",
-        value=f"{Emojis.THUMBS_UP} Approve, {Emojis.NO} Reject, {Emojis.FORCE} Force-complete, {Emojis.EXPLAIN} What Counts\nIf you are unsure, please ping and ask!",
-        inline=False,
-    )
     admin_receipt.set_footer(text="Please be careful when approving submissions 📋")
 
     # Return both

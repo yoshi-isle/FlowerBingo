@@ -123,7 +123,6 @@ class PlayerCog(commands.Cog):
         await __admin_embed_message.add_reaction(Emojis.THUMBS_UP)
         await __admin_embed_message.add_reaction(Emojis.NO)
         await __admin_embed_message.add_reaction(Emojis.FORCE)
-        await __admin_embed_message.add_reaction(Emojis.EXPLAIN)
 
         await interaction.response.send_message(
             f"Your submission has been sent! {Emojis.THUMBS_UP} Please wait for an admin to approve.",

@@ -22,6 +22,8 @@ def generate_image(board):
         image_coords = {int(k): v for k, v in CONFIG["image_coords"].items()}
         tilename_coords = {int(k): v for k, v in CONFIG["tilename_coords"].items()}
         text_colors = {int(k): tuple(v) for k, v in CONFIG["tile_name_colors"].items()}
+        pointvalue_coords = {int(k): v for k, v in CONFIG["pointvalue_coords"].items()}
+
         TEXT_BOX_WIDTH = CONFIG["text_box_width"]
         base_font_size = CONFIG["base_font_size"]
         smaller_font_size = CONFIG["smaller_font_size"]
@@ -90,6 +92,16 @@ def generate_image(board):
                     stroke_fill=stroke_color,
                 )
 
+                # pointvalue_coords
+                draw.text(
+                    (pointvalue_coords[i][0], pointvalue_coords[i][1]),
+                    f"+{pointvalue_coords[i][2]}",
+                    font=header_font,
+                    fill=(text_colors[i]),
+                    stroke_width=title_stroke_width,
+                    stroke_fill=stroke_color,
+                )
+
                 description = tile.get("description", "")
 
                 # Empty description fix for when it's "" empty string
@@ -100,7 +112,7 @@ def generate_image(board):
                     description, smaller_font, TEXT_BOX_WIDTH, draw
                 )
 
-                y_offset = tilename_coords[i][1] + base_font_size
+                y_offset = tilename_coords[i][1] + base_font_size + line_spacing
                 for line in wrapped_lines:
                     draw.text(
                         (tilename_coords[i][0], y_offset),

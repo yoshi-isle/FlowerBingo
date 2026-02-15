@@ -11,6 +11,12 @@
     "2": [100, 370],
     "3": [100, 520]
     },
+  "pointvalue_coords": {
+    "0": [1020, 150, 10],
+    "1": [1020, 300, 50],
+    "2": [1020, 450, 120],
+    "3": [1020, 600, 250]
+    },
   "tile_name_colors": {
     "0": [232, 212, 200],
     "1": [212, 165, 165],
@@ -23,9 +29,9 @@
     "2": "#C8B8E8",
     "3": "#A5D4C8"
   },
-  "text_box_width": 520,
-  "base_font_size": 58,
-  "smaller_font_size": 34,
+  "text_box_width": 880,
+  "base_font_size": 56,
+  "smaller_font_size": 26,
   "thumbnail_size": [124, 124],
-  "line_spacing": 1
+  "line_spacing": 3
 }

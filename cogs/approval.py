@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import os
 from constants import Emojis
+from utils.get_tile_definition import get_tile_definition
 from utils.register_team import assign_random_tile
 from utils.get_board_payload import get_board_payload
 
@@ -23,7 +24,6 @@ class ApprovalCog(commands.Cog):
             Emojis.THUMBS_UP,
             Emojis.NO,
             Emojis.FORCE,
-            Emojis.EXPLAIN,
         ]
 
     @property
@@ -50,17 +50,14 @@ class ApprovalCog(commands.Cog):
             return
 
         if str(payload.emoji) == Emojis.THUMBS_UP:
-            await self._handle_reaction(payload, is_approved=True)
+            await self._handle_reaction(payload)
 
         if str(payload.emoji) == Emojis.NO:
             await self._handle_reaction(payload, is_approved=False)
-
         if str(payload.emoji) == Emojis.FORCE:
-            print("Forcing completion")
-        if str(payload.emoji) == Emojis.EXPLAIN:
-            print("Explaining")
+            await self._handle_reaction(payload, force_complete=True)
 
-    async def _handle_reaction(self, payload, is_approved=True):
+    async def _handle_reaction(self, payload, is_approved=True, force_complete=False):
         admin_message = await self._fetch_admin_message(payload)
 
         if await self._submission_already_approved(payload.message_id):
@@ -86,7 +83,7 @@ class ApprovalCog(commands.Cog):
 
         if is_approved:
             remaining_submissions = await self._update_tile_assignment(
-                tile_submission_updated
+                tile_submission_updated, force_complete
             )
 
             # Note: The new tile generation has already happened at this point. This is solely for UX
@@ -148,7 +145,7 @@ class ApprovalCog(commands.Cog):
             str(message_id),
         )
 
-    async def _update_tile_assignment(self, tile_submission):
+    async def _update_tile_assignment(self, tile_submission, force_complete=False):
         """
         Update the tile assignment from the submission.
 
@@ -158,6 +155,12 @@ class ApprovalCog(commands.Cog):
             "SELECT * FROM public.tile_assignments WHERE id = $1",
             tile_submission["tile_assignment_id"],
         )
+
+        if force_complete:
+            updated_tile_assignment = await self.bot.db_pool.execute(
+                "UPDATE public.tile_assignments SET remaining_submissions = 0 WHERE id = $1 RETURNING *",
+                tile_submission["tile_assignment_id"],
+            )
 
         if tile_assignment["remaining_submissions"] > 0:
             updated_tile_assignment = await self.bot.db_pool.fetchrow(

@@ -20,12 +20,17 @@ class CustomerServiceCog(commands.Cog):
 
         if fuzz.ratio(clean_text, "how do i view board") >= 75:
             await message.channel.send(
-                f"Hey {message.author.mention}👋. To view your board, use `/view_board` in your team channel."
+                f"Hey {message.author.mention}👋. To view your board, use `/board` in your team channel."
             )
 
         elif fuzz.ratio(clean_text, "how do i check the board") >= 75:
             await message.channel.send(
-                f"Hey {message.author.mention} 👋. To view your board, use `/view_board` in your team channel."
+                f"Hey {message.author.mention} 👋. To view your board, use `/board` in your team channel."
+            )
+
+        elif fuzz.ratio(clean_text, "how check what tile we're on") >= 75:
+            await message.channel.send(
+                f"Hey {message.author.mention} 👋. To view your board, use `/board` in your team channel."
             )
 
 
