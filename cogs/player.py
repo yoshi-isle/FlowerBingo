@@ -11,6 +11,7 @@ from utils.create_submission import create_submission
 from utils.get_team_record import get_team_record
 from utils.get_team_tiles import get_team_tiles
 from utils.get_tile_definition import get_tile_definition
+from utils.register_team import assign_random_tile, get_random_tile
 
 
 class PlayerCog(commands.Cog):
@@ -241,7 +242,19 @@ class PlayerCog(commands.Cog):
 
         # Check if we are past the alloted time
         if datetime.now() > assigned_at + timedelta(hours=hours):
-            await interaction.response.send_message("Reroll it up")
+
+            # Mark the tile as skipped and generate a new one in one, safe transaction
+            async with self.bot.db_pool.acquire() as conn:
+                async with conn.transaction():
+                    await conn.fetchrow(
+                        "UPDATE public.tile_assignments SET is_active=False, was_skipped=True WHERE id=$1",
+                        tile_assignment["id"],
+                    )
+                    await assign_random_tile(conn, team["id"], option)
+                    await interaction.response.send_message(f"{interaction.user.display_name} Re-rolled the tile! Updating your board...")
+                    embed, file = await get_board_payload(conn, team["id"], team=team)
+                    await interaction.channel.send(embed=embed, file=file)
+                    return
         
         # Convert it to discord relative epoch <T:324234:R> format
         discord_timestamp = int(assigned_at.timestamp())

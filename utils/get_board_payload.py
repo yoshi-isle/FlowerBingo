@@ -4,7 +4,6 @@ from datetime import timedelta
 import discord
 
 from embeds.board import get_board_embed
-from utils.get_team_points import get_team_points
 from utils.get_team_tiles import get_team_tiles
 from utils.image_gen.board import generate_image
 
