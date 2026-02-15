@@ -2,6 +2,7 @@ import os
 import discord
 from discord import app_commands
 from discord.ext import commands
+from datetime import datetime, timedelta
 
 from constants import Emojis
 from embeds.submission import get_submission_embed
@@ -15,6 +16,23 @@ from utils.get_tile_definition import get_tile_definition
 class PlayerCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+
+        # Keeps track of reroll timers per index
+        self.reroll_timers_by_difficulty = []
+
+    async def cog_load(self):
+        self.reroll_timers_by_difficulty.append(await self.bot.db_pool.fetchval(
+            "SELECT amount FROM global_configs WHERE name = 'easy_reroll_hours'"
+        ))
+        self.reroll_timers_by_difficulty.append(await self.bot.db_pool.fetchval(
+            "SELECT amount FROM global_configs WHERE name = 'medium_reroll_hours'"
+        ))
+        self.reroll_timers_by_difficulty.append(await self.bot.db_pool.fetchval(
+            "SELECT amount FROM global_configs WHERE name = 'hard_reroll_hours'"
+        ))
+        self.reroll_timers_by_difficulty.append(await self.bot.db_pool.fetchval(
+            "SELECT amount FROM global_configs WHERE name = 'elite_reroll_hours'"
+        ))
 
     @app_commands.command(name="board", description="View the board for your team")
     async def view_board(self, interaction: discord.Interaction):
@@ -173,6 +191,63 @@ class PlayerCog(commands.Cog):
         )
 
         await interaction.response.send_message(embed=embed)
+    
+    @app_commands.command(name="reroll", description="Reroll a tile if the time allows.")
+    @app_commands.autocomplete(option=submit_autocomplete)
+    async def reroll(self, interaction: discord.Interaction, option: int):
+
+        # Guard - not signed up
+        team = await get_team_record(self.bot.db_pool, interaction.user.id)
+        if not team:
+            await interaction.response.send_message(
+                "Looks like you're not part of any team. Please contact an admin."
+            )
+            return
+
+        # Guard - wrong channel
+        if int(team["discord_channel_id"]) != interaction.channel_id:
+            await interaction.response.send_message(
+                content="You can only use `/explain` in your team's channel."
+            )
+            return
+
+        # Get tile assignment by category
+        tile_assignment = await self.bot.db_pool.fetchrow(
+            "SELECT * FROM public.tile_assignments WHERE category = $1 AND is_active = true",
+            option,
+        )
+
+        if not tile_assignment:
+            await interaction.response.send_message("No tile assignment found for this category.")
+            return
+
+        print("Found a tile assignment for", option, tile_assignment)
+
+        # Get assigned_at and convert to time
+        assigned_at = tile_assignment["created_at"]
+
+        if assigned_at is None:
+            await interaction.response.send_message("Tile assignment has no creation time.")
+            return
+
+        # Ensure assigned_at is timezone-naive for comparison
+        if assigned_at.tzinfo is not None:
+            assigned_at = assigned_at.replace(tzinfo=None)
+
+        hours = self.reroll_timers_by_difficulty[option-1]
+        if hours is None:
+            await interaction.response.send_message("Reroll timer not configured for this difficulty.")
+            return
+
+        # Check if we are past the alloted time
+        if datetime.now() > assigned_at + timedelta(hours=hours):
+            await interaction.response.send_message("Reroll it up")
+        
+        # Convert it to discord relative epoch <T:324234:R> format
+        discord_timestamp = int(assigned_at.timestamp())
+        discord_relative_time = f"<t:{discord_timestamp}:R>"
+
+        await interaction.response.send_message(f"You can't reroll that tile yet. Timer: {discord_relative_time}.")
 
 
 async def setup(bot):

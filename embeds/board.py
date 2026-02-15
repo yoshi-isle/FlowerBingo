@@ -3,7 +3,9 @@ from discord import Embed
 from constants import Emojis
 
 
-def get_board_embed(team, board, points):
+def get_board_embed(team, board, reroll_timers):
+
+
     embed = Embed(title=f"{team['team_name']} ({Emojis.HIGHSCORES} `1st` place)")
 
     embed.color = 0x00FF00
@@ -14,7 +16,7 @@ def get_board_embed(team, board, points):
     for i in range(4):
         embed.add_field(
             name=f"{board[i].get('tile_name', 'Error')} (`{board[i].get('remaining_submissions', 'Error')}` remaining)",
-            value="Re-roll: <t:1771116840:R>",
+            value=f"Re-roll: {reroll_timers[i]}",
             inline=False,
         )
 
