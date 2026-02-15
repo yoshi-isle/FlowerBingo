@@ -1,24 +1,51 @@
 from discord import Color, Embed
 import discord
 
+from constants import Emojis
+
 
 def get_submission_embed(interaction: discord.Interaction, tile, team) -> tuple:
-    receipt_embed = Embed(title="", colour=Color.yellow())
-    receipt_embed.set_author(
+    """
+    Player submission receipt
+    """
+    player_receipt = Embed(title="", colour=Color.yellow())
+    player_receipt.set_author(
         name=f"Tile Submission by {interaction.user.display_name}",
         icon_url=interaction.user.display_avatar.url,
     )
-    receipt_embed.add_field(
+    player_receipt.add_field(
         name="Status", value="🟡 Waiting for approval", inline=False
     )
-    receipt_embed.add_field(
+    player_receipt.add_field(
         name="I completed...", value=f"{tile['tile_name']}\n", inline=False
     )
-    admin_embed = receipt_embed.copy()
-    admin_embed.add_field(
+
+    """
+    Admin submission receipt
+    """
+    admin_receipt = Embed(title="", colour=Color.yellow())
+    admin_receipt.set_author(
+        name=f"Tile Submission by {interaction.user.display_name}",
+        icon_url=interaction.user.display_avatar.url,
+    )
+    admin_receipt.add_field(
+        name="Status", value="🟡 Waiting for approval", inline=False
+    )
+    admin_receipt.add_field(
+        name="I completed...", value=f"{tile['tile_name']}\n", inline=False
+    )
+
+    admin_receipt.add_field(
         name="Team",
         value=f"{team['team_name']} {interaction.channel.jump_url}\n",
         inline=False,
     )
-    admin_embed.set_footer(text="Please be careful when approving submissions 📋")
-    return receipt_embed, admin_embed
+    admin_receipt.add_field(
+        name="Instructions",
+        value=f"{Emojis.THUMBS_UP} Approve, {Emojis.NO} Reject, {Emojis.FORCE} Force-complete, {Emojis.EXPLAIN} What Counts\nIf you are unsure, please ping and ask!",
+        inline=False,
+    )
+    admin_receipt.set_footer(text="Please be careful when approving submissions 📋")
+
+    # Return both
+    return player_receipt, admin_receipt

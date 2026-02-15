@@ -7,6 +7,9 @@ async def get_team_record(conn: asyncpg.Connection, discord_user_id: str):
             "SELECT * FROM public.players WHERE discord_id = $1",
             str(discord_user_id),
         )
+        if not player_row:
+            return None
+
         team_row = await conn.fetchrow(
             "SELECT * FROM public.teams WHERE id = $1", player_row["team_id"]
         )

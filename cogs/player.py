@@ -4,6 +4,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from constants import Emojis
 from embeds.board import get_board_embed
 from embeds.submission import get_submission_embed
 from utils.create_submission import create_submission
@@ -59,8 +60,8 @@ class PlayerCog(commands.Cog):
             team = await get_team_record(self.bot.db_pool, str(interaction.user.id))
             if not team:
                 return []
-            tiles = await get_team_tiles(self.bot.db_pool, team["id"])
 
+            tiles = await get_team_tiles(self.bot.db_pool, team["id"])
             choices = []
 
             if not tiles:
@@ -121,11 +122,13 @@ class PlayerCog(commands.Cog):
         )
 
         # Add reactions to admin embed
-        await __admin_embed_message.add_reaction("✅")
-        await __admin_embed_message.add_reaction("❌")
+        await __admin_embed_message.add_reaction(Emojis.THUMBS_UP)
+        await __admin_embed_message.add_reaction(Emojis.NO)
+        await __admin_embed_message.add_reaction(Emojis.FORCE)
+        await __admin_embed_message.add_reaction(Emojis.EXPLAIN)
 
         await interaction.response.send_message(
-            "Your submission has been sent! ✅ Please wait for an admin to approve.",
+            f"Your submission has been sent! {Emojis.THUMBS_UP} Please wait for an admin to approve.",
             ephemeral=True,
         )
 

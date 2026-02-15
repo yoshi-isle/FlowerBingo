@@ -1,0 +1,6 @@
+class Emojis:
+    THUMBS_UP = "<:thumbs_up:1472390785055064096>"
+    NO = "<:no:1472391757143478433>"
+    FORCE = "<:force_complete:1472391987503042813>"
+    EXPLAIN = "<:explain:1472392208836722698>"
+    HIGHSCORES = "<:highscores:1472394847699861728>"
