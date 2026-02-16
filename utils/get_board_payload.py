@@ -1,5 +1,5 @@
 import asyncio
-from datetime import timedelta
+from datetime import timedelta, datetime, timezone
 
 import discord
 
@@ -8,7 +8,7 @@ from utils.get_team_tiles import get_team_tiles
 from utils.image_gen.board import generate_image
 
 
-async def get_board_payload(conn, team_id, team=None):
+async def get_board_payload(conn, team_id, team=None, new_tile_index=None):
     team_record = team
     if not team_record:
         team_record = await conn.fetchrow(
@@ -22,7 +22,6 @@ async def get_board_payload(conn, team_id, team=None):
     board = await get_team_tiles(conn, team_id)
 
     # Get all reroll timers
-
     reroll_timers = []
     assignments_created_at = await conn.fetch(
         "SELECT created_at FROM public.tile_assignments WHERE team_id = $1 AND is_active = true ORDER BY category asc",
@@ -43,11 +42,16 @@ async def get_board_payload(conn, team_id, team=None):
 
         # Convert it to fancy discord <T:23342:R> or whatever for relative
         reroll_timer = f"<t:{int(created_at.timestamp())}:R>"
-        reroll_timers.append(reroll_timer)
+
+        # lol
+        if datetime.now(timezone.utc) > created_at:
+            reroll_timers.append("**You can re-roll!**")
+        else:
+            reroll_timers.append(reroll_timer)
     
 
     # Get reroll configuration from db
-    img = await asyncio.to_thread(generate_image, board)
+    img = await asyncio.to_thread(generate_image, board, new_tile_index)
     embed = get_board_embed(team_record, board, reroll_timers)
     file = discord.File(fp=img, filename="board.png")
 

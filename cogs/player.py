@@ -2,7 +2,7 @@ import os
 import discord
 from discord import app_commands
 from discord.ext import commands
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from constants import Emojis
 from embeds.submission import get_submission_embed
@@ -11,7 +11,7 @@ from utils.create_submission import create_submission
 from utils.get_team_record import get_team_record
 from utils.get_team_tiles import get_team_tiles
 from utils.get_tile_definition import get_tile_definition
-from utils.register_team import assign_random_tile, get_random_tile
+from utils.register_team import assign_random_tile
 
 
 class PlayerCog(commands.Cog):
@@ -36,7 +36,7 @@ class PlayerCog(commands.Cog):
         ))
 
     @app_commands.command(name="board", description="View the board for your team")
-    async def view_board(self, interaction: discord.Interaction):
+    async def board(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True)
         try:
             async with self.bot.db_pool.acquire() as conn:
@@ -208,13 +208,14 @@ class PlayerCog(commands.Cog):
         # Guard - wrong channel
         if int(team["discord_channel_id"]) != interaction.channel_id:
             await interaction.response.send_message(
-                content="You can only use `/explain` in your team's channel."
+                content="You can only use `/reroll` in your team's channel."
             )
             return
 
         # Get tile assignment by category
         tile_assignment = await self.bot.db_pool.fetchrow(
-            "SELECT * FROM public.tile_assignments WHERE category = $1 AND is_active = true",
+            "SELECT * FROM public.tile_assignments WHERE team_id = $1 AND category = $2 AND is_active = true",
+            team["id"],
             option,
         )
 
@@ -231,9 +232,11 @@ class PlayerCog(commands.Cog):
             await interaction.response.send_message("Tile assignment has no creation time.")
             return
 
-        # Ensure assigned_at is timezone-naive for comparison
-        if assigned_at.tzinfo is not None:
-            assigned_at = assigned_at.replace(tzinfo=None)
+        # Normalize to UTC for consistent comparisons and timestamps
+        if assigned_at.tzinfo is None:
+            assigned_at = assigned_at.replace(tzinfo=timezone.utc)
+        else:
+            assigned_at = assigned_at.astimezone(timezone.utc)
 
         hours = self.reroll_timers_by_difficulty[option-1]
         if hours is None:
@@ -241,7 +244,8 @@ class PlayerCog(commands.Cog):
             return
 
         # Check if we are past the alloted time
-        if datetime.now() > assigned_at + timedelta(hours=hours):
+        reroll_ready_at = assigned_at + timedelta(hours=hours)
+        if datetime.now(timezone.utc) > reroll_ready_at:
 
             # Mark the tile as skipped and generate a new one in one, safe transaction
             async with self.bot.db_pool.acquire() as conn:
@@ -256,11 +260,11 @@ class PlayerCog(commands.Cog):
                     await interaction.channel.send(embed=embed, file=file)
                     return
         
-        # Convert it to discord relative epoch <T:324234:R> format
-        discord_timestamp = int(assigned_at.timestamp())
-        discord_relative_time = f"<t:{discord_timestamp}:R>"
+        # Convert it to discord short date and time format
+        discord_timestamp = int(reroll_ready_at.timestamp())
+        discord_short_time = f"<t:{discord_timestamp}:f>"
 
-        await interaction.response.send_message(f"You can't reroll that tile yet. Timer: {discord_relative_time}.")
+        await interaction.response.send_message(f"You can't reroll that tile until {discord_short_time}.")
 
 
 async def setup(bot):

@@ -82,12 +82,12 @@ class ApprovalCog(commands.Cog):
         team_channel = self.bot.get_channel(int(team["discord_channel_id"]))
 
         if is_approved:
-            remaining_submissions = await self._update_tile_assignment(
+            updated_tile_assignment = await self._update_tile_assignment(
                 tile_submission_updated, force_complete
             )
 
             # Note: The new tile generation has already happened at this point. This is solely for UX
-            if remaining_submissions <= 0:
+            if updated_tile_assignment["remaining_submissions"] <= 0:
                 await team_channel.send(
                     f"**Tile** complete! {Emojis.THUMBS_UP} Posting your new board..."
                 )
@@ -95,12 +95,13 @@ class ApprovalCog(commands.Cog):
                     self.bot.db_pool,
                     team["id"],
                     team=team,
+                    new_tile_index=updated_tile_assignment["category"],
                 )
                 if team_embed and file:
                     await team_channel.send(embed=team_embed, file=file)
             else:
                 await team_channel.send(
-                    f"Your team made progress on the tile. You still need {remaining_submissions}."
+                    f"Your team made progress on the tile. You still need {updated_tile_assignment['remaining_submissions']}."
                 )
 
         await self._update_admin_message(
@@ -157,7 +158,7 @@ class ApprovalCog(commands.Cog):
         )
 
         if force_complete:
-            updated_tile_assignment = await self.bot.db_pool.execute(
+            updated_tile_assignment = await self.bot.db_pool.fetchrow(
                 "UPDATE public.tile_assignments SET remaining_submissions = 0 WHERE id = $1 RETURNING *",
                 tile_submission["tile_assignment_id"],
             )
@@ -181,7 +182,7 @@ class ApprovalCog(commands.Cog):
                     tile_assignment["category"],
                 )
 
-            return updated_tile_assignment["remaining_submissions"]
+            return updated_tile_assignment
 
         return 0
 

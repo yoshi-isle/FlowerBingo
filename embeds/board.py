@@ -4,11 +4,9 @@ from constants import Emojis
 
 
 def get_board_embed(team, board, reroll_timers):
+    embed = Embed(title=team['team_name'])
 
-
-    embed = Embed(title=f"{team['team_name']} ({Emojis.HIGHSCORES} `1st` place)")
-
-    embed.color = 0x00FF00
+    embed.color = 0xFFB6C1
     embed.set_thumbnail(
         url="https://oldschool.runescape.wiki/images/thumb/3rd_age_pickaxe_detail.png/300px-3rd_age_pickaxe_detail.png?0bf61"
     )

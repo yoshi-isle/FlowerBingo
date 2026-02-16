@@ -12,7 +12,7 @@ CONFIG_PATH = os.path.join(os.path.dirname(__file__), "board_config.json")
 CONFIG_PATH = os.path.abspath(CONFIG_PATH)
 
 
-def generate_image(board):
+def generate_image(board, new_tile_index=None):
     try:
         # Load config from file each time
         with open(CONFIG_PATH, "r") as f:
@@ -34,7 +34,7 @@ def generate_image(board):
         stroke_color = (0, 0, 0)
         thumbnail_outline_color = (0, 0, 0, 0)
         thumbnail_outline_width = 3
-        background_filepath = os.path.join(os.path.dirname(__file__), "sample-bg.png")
+        background_filepath = os.path.join(os.path.dirname(__file__), "newbg2.png")
         background_filepath = os.path.abspath(background_filepath)
         with Image.open(background_filepath) as base_img:
             draw = ImageDraw.Draw(base_img)
@@ -64,11 +64,14 @@ def generate_image(board):
                 )
                 alpha_canvas.paste(alpha_mask, (effect_padding, effect_padding))
 
+                # Determine outline color based on whether tile is new
+                outline_color = (255, 255, 0, 255) if (new_tile_index and i == new_tile_index - 1) else thumbnail_outline_color
+                
                 expanded_alpha = alpha_canvas.filter(
                     ImageFilter.MaxFilter((thumbnail_outline_width * 2) + 1)
                 )
                 outline_layer = Image.new(
-                    "RGBA", alpha_canvas.size, thumbnail_outline_color
+                    "RGBA", alpha_canvas.size, outline_color
                 )
                 outline_layer.putalpha(expanded_alpha)
                 base_img.paste(
@@ -101,6 +104,16 @@ def generate_image(board):
                     stroke_width=title_stroke_width,
                     stroke_fill=stroke_color,
                 )
+
+                if new_tile_index and i == new_tile_index-1:
+                    draw.text(
+                        (pointvalue_coords[i][0]+50, pointvalue_coords[i][1]-50),
+                        "NEW!",
+                        font=smaller_font,
+                        fill=(255, 255, 0),
+                        stroke_width=title_stroke_width,
+                        stroke_fill=stroke_color,
+                    )
 
                 description = tile.get("description", "")
 
