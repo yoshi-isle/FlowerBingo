@@ -26,6 +26,8 @@ def generate_image(board, new_tile_index=None):
 
         TEXT_BOX_WIDTH = CONFIG["text_box_width"]
         base_font_size = CONFIG["base_font_size"]
+        points_font_size = CONFIG["points_font_size"]
+
         smaller_font_size = CONFIG["smaller_font_size"]
         thumbnail_size = tuple(CONFIG["thumbnail_size"])
         line_spacing = CONFIG["line_spacing"]
@@ -39,6 +41,7 @@ def generate_image(board, new_tile_index=None):
         with Image.open(background_filepath) as base_img:
             draw = ImageDraw.Draw(base_img)
             header_font = ImageFont.truetype(FONT_PATH, size=base_font_size)
+            points_font = ImageFont.truetype(FONT_PATH, size=points_font_size)
             smaller_font = ImageFont.truetype(FONT_PATH, size=smaller_font_size)
             for i, tile in enumerate(board):
                 img_base64 = tile["image_data"]
@@ -96,10 +99,16 @@ def generate_image(board, new_tile_index=None):
                 )
 
                 # pointvalue_coords
+                # Get the text and font metrics for right alignment
+                points_text = f"+{pointvalue_coords[i][2]}"
+                bbox = draw.textbbox((0, 0), points_text, font=points_font)
+                text_width = bbox[2] - bbox[0]
+                aligned_x = pointvalue_coords[i][0] - text_width
+                
                 draw.text(
-                    (pointvalue_coords[i][0], pointvalue_coords[i][1]),
-                    f"+{pointvalue_coords[i][2]}",
-                    font=header_font,
+                    (aligned_x, pointvalue_coords[i][1]),
+                    points_text,
+                    font=points_font,
                     fill=(text_colors[i]),
                     stroke_width=title_stroke_width,
                     stroke_fill=stroke_color,
@@ -107,7 +116,7 @@ def generate_image(board, new_tile_index=None):
 
                 if new_tile_index and i == new_tile_index-1:
                     draw.text(
-                        (pointvalue_coords[i][0]+50, pointvalue_coords[i][1]-50),
+                        (pointvalue_coords[i][0]-20, pointvalue_coords[i][1]-20),
                         "NEW!",
                         font=smaller_font,
                         fill=(255, 255, 0),
