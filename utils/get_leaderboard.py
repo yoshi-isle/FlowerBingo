@@ -10,18 +10,21 @@ async def get_leaderboard(conn: asyncpg.Connection):
     }
 
     try:
-        config_row = await conn.fetchrow(
+        config_rows = await conn.fetch(
             """
-            SELECT easy_points, medium_points, hard_points, elite_points
+            SELECT name, amount
             FROM public.global_configs
-            LIMIT 1
-            """
+            WHERE name = ANY($1::text[])
+            """,
+            ["easy_points", "medium_points", "hard_points", "elite_points"],
         )
 
-        easy_points = int(config_row["easy_points"] or 0) if config_row else 0
-        medium_points = int(config_row["medium_points"] or 0) if config_row else 0
-        hard_points = int(config_row["hard_points"] or 0) if config_row else 0
-        elite_points = int(config_row["elite_points"] or 0) if config_row else 0
+        config_map = {row["name"]: int(row["amount"] or 0) for row in config_rows}
+
+        easy_points = config_map.get("easy_points", 0)
+        medium_points = config_map.get("medium_points", 0)
+        hard_points = config_map.get("hard_points", 0)
+        elite_points = config_map.get("elite_points", 0)
 
         category_point_ratio = {
             1: easy_points,
