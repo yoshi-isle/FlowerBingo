@@ -19,6 +19,13 @@ async def get_board_payload(conn, team_id, team=None, new_tile_index=None):
     if not team_record:
         return None, None
 
+    game_state = await conn.fetchrow(
+        "SELECT * FROM public.global_game_states ORDER BY id DESC LIMIT 1"
+    )
+    is_flower_basket_active = bool(
+        game_state and game_state["is_flower_basket_active"]
+    )
+
     board = await get_team_tiles(conn, team_id)
 
     # Get all reroll timers
@@ -51,8 +58,13 @@ async def get_board_payload(conn, team_id, team=None, new_tile_index=None):
     
 
     # Get reroll configuration from db
-    img = await asyncio.to_thread(generate_image, board, new_tile_index)
-    embed = get_board_embed(team_record, board, reroll_timers)
+    img = await asyncio.to_thread(
+        generate_image,
+        board,
+        new_tile_index,
+        is_flower_basket_active,
+    )
+    embed = get_board_embed(team_record, board, reroll_timers, is_flower_basket_active)
     file = discord.File(fp=img, filename="board.png")
 
     return embed, file

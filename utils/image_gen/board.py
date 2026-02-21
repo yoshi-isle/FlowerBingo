@@ -10,12 +10,23 @@ FONT_PATH = os.path.abspath(FONT_PATH)
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "board_config.json")
 CONFIG_PATH = os.path.abspath(CONFIG_PATH)
+FLOWER_BASKET_CONFIG_PATH = os.path.join(
+    os.path.dirname(__file__),
+    "flowerbasket_board_config.json",
+)
+FLOWER_BASKET_CONFIG_PATH = os.path.abspath(FLOWER_BASKET_CONFIG_PATH)
 
 
-def generate_image(board, new_tile_index=None):
+def generate_image(board, new_tile_index=None, is_flower_basket_active=False):
     try:
+        config_path = (
+            FLOWER_BASKET_CONFIG_PATH
+            if is_flower_basket_active
+            else CONFIG_PATH
+        )
+
         # Load config from file each time
-        with open(CONFIG_PATH, "r") as f:
+        with open(config_path, "r") as f:
             CONFIG = json.load(f)
 
         # Load config values
@@ -36,7 +47,15 @@ def generate_image(board, new_tile_index=None):
         stroke_color = (0, 0, 0)
         thumbnail_outline_color = (0, 0, 0, 0)
         thumbnail_outline_width = 3
-        background_filepath = os.path.join(os.path.dirname(__file__), "newbg2.png")
+        background_filename = (
+            "flowerbasketboard.png"
+            if is_flower_basket_active
+            else "newbg2.png"
+        )
+        background_filepath = os.path.join(
+            os.path.dirname(__file__),
+            background_filename,
+        )
         background_filepath = os.path.abspath(background_filepath)
         with Image.open(background_filepath) as base_img:
             draw = ImageDraw.Draw(base_img)
