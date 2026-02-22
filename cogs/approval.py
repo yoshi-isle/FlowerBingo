@@ -1,10 +1,11 @@
 import discord
 from discord.ext import commands
 import os
+import asyncio
 from constants import Emojis
-from utils.get_tile_definition import get_tile_definition
 from utils.register_team import assign_random_tile
 from utils.get_board_payload import get_board_payload
+import time
 
 
 class ApprovalCog(commands.Cog):
@@ -25,6 +26,10 @@ class ApprovalCog(commands.Cog):
             Emojis.NO,
             Emojis.FORCE,
         ]
+        self.reaction_cooldown_seconds = 10
+        self.last_reaction_by_user = {}
+        self.users_in_progress = set()
+        self.cooldown_lock = asyncio.Lock()
 
     @property
     def pending_channel(self):
@@ -49,8 +54,35 @@ class ApprovalCog(commands.Cog):
         if str(payload.emoji) not in self.accepted_reactions:
             return
 
-        if str(payload.emoji) == Emojis.THUMBS_UP:
-            await self._handle_reaction(payload)
+        channel = self.bot.get_channel(payload.channel_id)
+        if channel is None:
+            return
+
+        async with self.cooldown_lock:
+            if payload.user_id in self.users_in_progress:
+                await channel.send(
+                    "You're already processing a submission. Please wait for it to finish.",
+                    delete_after=3,
+                )
+                return
+
+            last_reaction_at = self.last_reaction_by_user.get(payload.user_id)
+            if last_reaction_at is not None:
+                elapsed = time.monotonic() - last_reaction_at
+                if elapsed < self.reaction_cooldown_seconds:
+                    remaining = int(self.reaction_cooldown_seconds - elapsed)
+                    await channel.send(
+                        f"Rate limit: please wait {remaining}s before reacting again.",
+                        delete_after=max(remaining, 1),
+                    )
+                    return
+
+            self.users_in_progress.add(payload.user_id)
+            self.last_reaction_by_user[payload.user_id] = time.monotonic()
+
+        try:
+            if str(payload.emoji) == Emojis.THUMBS_UP:
+                await self._handle_reaction(payload)
 
         if str(payload.emoji) == Emojis.NO:
 
