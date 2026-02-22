@@ -31,18 +31,29 @@ async def get_board_payload(conn, team_id, team=None, new_tile_index=None):
     # Get all reroll timers
     reroll_timers = []
     assignments_created_at = await conn.fetch(
-        "SELECT created_at FROM public.tile_assignments WHERE team_id = $1 AND is_active = true ORDER BY category asc",
-        team_id
+        "SELECT category, created_at FROM public.tile_assignments WHERE team_id = $1 AND is_active = true AND category BETWEEN 1 AND 4",
+        team_id,
     )
+    assignment_created_at_by_category = {
+        row["category"]: row["created_at"] for row in assignments_created_at
+    }
     config_names = ["easy_reroll_hours", "medium_reroll_hours", "hard_reroll_hours", "elite_reroll_hours"]
     for i in range(4):
 
         reroll_config = await conn.fetchval(
-            "SELECT amount FROM global_configs WHERE name = $1",
+            "SELECT amount FROM public.global_configs WHERE name = $1",
             config_names[i]
         )
 
-        created_at = assignments_created_at[i][0]
+        created_at = assignment_created_at_by_category.get(i + 1)
+        if created_at is None or reroll_config is None:
+            reroll_timers.append("N/A")
+            continue
+
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        else:
+            created_at = created_at.astimezone(timezone.utc)
 
         # Add reroll_config hours
         created_at += timedelta(hours=reroll_config)

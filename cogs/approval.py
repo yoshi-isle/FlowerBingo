@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import os
 import asyncio
+import random
 from constants import Emojis
 from utils.register_team import assign_random_tile
 from utils.get_board_payload import get_board_payload
@@ -214,6 +215,8 @@ class ApprovalCog(commands.Cog):
                     tile_submission["tile_assignment_id"],
                 )
 
+                await self._roll_basket_chance(tile_assignment["category"])
+
                 # Generate a new tile
                 await assign_random_tile(
                     self.bot.db_pool,
@@ -224,6 +227,130 @@ class ApprovalCog(commands.Cog):
             return updated_tile_assignment
 
         return 0
+
+    async def _roll_basket_chance(self, category: int):
+        config_names_by_category = {
+            1: "basket_chance_easy",
+            2: "basket_chance_medium",
+            3: "basket_chance_hard",
+            4: "basket_chance_elite",
+        }
+
+        config_name = config_names_by_category.get(category)
+        if not config_name:
+            return
+
+        amount = await self.bot.db_pool.fetchval(
+            "SELECT amount FROM public.global_configs WHERE name = $1",
+            config_name,
+        )
+
+        if not amount or amount <= 0:
+            return
+
+        if random.randint(1, int(amount)) == 1:
+            did_spawn = await self._spawn_flower_basket()
+            if did_spawn:
+                print("lucky!")
+
+    async def _spawn_flower_basket(self):
+        did_spawn = False
+        print("spawning...")
+
+        try:
+
+            async with self.bot.db_pool.acquire() as conn:
+                async with conn.transaction():
+                    game_state = await conn.fetchrow(
+                        """
+                        SELECT *
+                        FROM public.global_game_states
+                        ORDER BY id ASC
+                        LIMIT 1
+                        FOR UPDATE
+                        """
+                    )
+
+                    if not game_state:
+                        return False
+
+                    if game_state["is_flower_basket_active"]:
+                        return False
+
+                    flower_basket_tile_id = await conn.fetchval(
+                        """
+                        SELECT id
+                        FROM public.tiles
+                        WHERE category = 5
+                            AND id NOT IN (
+                                SELECT tile_id FROM public.flower_basket_history
+                            )
+                        ORDER BY RANDOM()
+                        LIMIT 1
+                        """
+                    )
+
+                    if not flower_basket_tile_id:
+                        return False
+
+                    await conn.execute(
+                        """
+                        UPDATE public.global_game_states
+                        SET flower_basket_tile_id = $1,
+                            is_flower_basket_active = true
+                        WHERE id = $2
+                        """,
+                        flower_basket_tile_id,
+                        game_state["id"],
+                    )
+
+                    await conn.execute(
+                        """
+                        INSERT INTO public.flower_basket_history (tile_id)
+                        SELECT $1
+                        WHERE NOT EXISTS (
+                            SELECT 1
+                            FROM public.flower_basket_history
+                            WHERE tile_id = $1
+                        )
+                        """,
+                        flower_basket_tile_id,
+                    )
+
+                    did_spawn = True
+
+            if not did_spawn:
+                return False
+
+            all_teams = await self.bot.db_pool.fetch(
+                "SELECT id, discord_channel_id, team_name FROM public.teams WHERE discord_channel_id IS NOT NULL"
+            )
+
+            for team in all_teams:
+                team_channel = self.bot.get_channel(int(team["discord_channel_id"]))
+                if team_channel is None:
+                    try:
+                        team_channel = await self.bot.fetch_channel(
+                            int(team["discord_channel_id"])
+                        )
+                    except Exception:
+                        continue
+
+                if not team_channel:
+                    continue
+
+                await team_channel.send("A flower basket has spawned.")
+                team_embed, file = await get_board_payload(
+                    self.bot.db_pool,
+                    team["id"],
+                    team=team,
+                )
+                if team_embed and file:
+                    await team_channel.send(embed=team_embed, file=file)
+        except Exception as e:
+            print(e)
+            return False
+        return did_spawn
 
     async def _get_team_for_submission(self, tile_submission_updated):
         tile_assignment = await self.bot.db_pool.fetchrow(

@@ -5,6 +5,7 @@ from discord.ext import commands
 
 from constants import Emojis
 from utils.get_team_record import get_team_record
+from utils.register_team import assign_random_tile
 from utils.register_team import register_team
 
 
@@ -148,7 +149,7 @@ class AdminCog(commands.Cog):
                 f"{team}: {', '.join(players) if players else 'No players'}"
                 for team, players in teams_dict.items()
             ]
-            await interaction.followup.send(f"Teams:\n- " + "\n- ".join(team_list))
+            await interaction.followup.send("Teams:\n- " + "\n- ".join(team_list))
         except Exception as e:
             await interaction.followup.send(f"Database error: {str(e)}")
 
@@ -168,6 +169,67 @@ class AdminCog(commands.Cog):
                 # Clear every message in this channel, too
                 await interaction.channel.purge(limit=100)
             await interaction.followup.send("All bingo data has been cleared.")
+        except Exception as e:
+            await interaction.followup.send(f"Database error: {str(e)}")
+
+    @app_commands.command(
+        name="admin_force_spawn",
+        description="Force spawn a tile for easy/med/hard/elite in this channel if none exists.",
+    )
+    async def force_spawn(self, interaction: discord.Interaction, difficulty: str):
+        difficulty_key = difficulty.strip().lower()
+        category_by_difficulty = {
+            "easy": 1,
+            "med": 2,
+            "medium": 2,
+            "hard": 3,
+            "elite": 4,
+        }
+
+        category = category_by_difficulty.get(difficulty_key)
+        if category is None:
+            await interaction.response.send_message(
+                "Invalid difficulty. Use one of: easy, med, hard, elite."
+            )
+            return
+
+        await interaction.response.defer(thinking=True)
+        try:
+            async with self.bot.db_pool.acquire() as conn:
+                team = await conn.fetchrow(
+                    "SELECT * FROM public.teams WHERE discord_channel_id = $1",
+                    str(interaction.channel_id),
+                )
+
+                if not team:
+                    await interaction.followup.send(
+                        "No team is registered for this channel."
+                    )
+                    return
+
+                existing_assignment = await conn.fetchrow(
+                    "SELECT * FROM public.tile_assignments WHERE team_id = $1 AND category = $2 AND is_active = true",
+                    team["id"],
+                    category,
+                )
+
+                if existing_assignment:
+                    await interaction.followup.send(
+                        f"This team already has an active {difficulty_key} tile."
+                    )
+                    return
+
+                new_assignment = await assign_random_tile(conn, team["id"], category)
+                tile = await conn.fetchrow(
+                    "SELECT tile_name FROM public.tiles WHERE id = $1",
+                    new_assignment["tile_id"],
+                )
+
+                tile_name = tile["tile_name"] if tile else "Unknown tile"
+                await interaction.followup.send(
+                    f"{Emojis.THUMBS_UP} Spawned {difficulty_key} tile for {team['team_name']}: {tile_name}"
+                )
+
         except Exception as e:
             await interaction.followup.send(f"Database error: {str(e)}")
 
