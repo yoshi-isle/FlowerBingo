@@ -4,6 +4,7 @@ from discord.ext import commands
 
 
 from constants import Emojis
+from utils.get_board_payload import get_board_payload
 from utils.get_team_record import get_team_record
 from utils.register_team import assign_random_tile
 from utils.register_team import register_team
@@ -233,6 +234,26 @@ class AdminCog(commands.Cog):
         except Exception as e:
             await interaction.followup.send(f"Database error: {str(e)}")
 
+    @app_commands.command(name="admin_reveal", description="Reveal a board for the team in this channel.")
+    async def admin_reveal(self, interaction: discord.Interaction):
+        try:
+            channel_id = interaction.channel.id
+            async with self.bot.db_pool.acquire() as conn:
+                team = await conn.fetchrow(
+                    "SELECT * FROM public.teams WHERE discord_channel_id = $1",
+                    str(channel_id)
+                )
+                if not team:
+                    await interaction.response.send_message("No team found for this channel.")
+                    return
+                team_embed, file = await get_board_payload(
+                    conn,
+                    team["id"],
+                    team=team,
+                )
+                await interaction.response.send_message(embed=team_embed, file=file)
+        except Exception as e:
+            print(e)
 
 async def setup(bot):
     await bot.add_cog(AdminCog(bot))

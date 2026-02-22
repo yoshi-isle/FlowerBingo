@@ -3,7 +3,7 @@ from discord import Embed
 from constants import Emojis
 
 
-def get_board_embed(team, board, reroll_timers, is_flower_basket_active):
+def get_board_embed(team, board, reroll_timers, is_flower_basket_active, flower_basket_tile=None):
     embed = Embed(title=team['team_name'])
 
     embed.color = 0xFFB6C1
@@ -20,9 +20,14 @@ def get_board_embed(team, board, reroll_timers, is_flower_basket_active):
         )
     
     if is_flower_basket_active:
+        flower_basket_name = (
+            flower_basket_tile["tile_name"]
+            if flower_basket_tile
+            else "Unknown tile"
+        )
         embed.add_field(
             name="💮 Flower Basket 💮",
-            value="There's a flower basket active!",
+            value=f"There's a flower basket active!\nCurrent tile: {flower_basket_name}",
             inline=False,
         )
 

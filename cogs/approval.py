@@ -215,7 +215,7 @@ class ApprovalCog(commands.Cog):
                     tile_submission["tile_assignment_id"],
                 )
 
-                await self._roll_basket_chance(tile_assignment["category"])
+                await self._roll_basket_chance(tile_assignment["category"], skip_team_id=tile_assignment["team_id"])
 
                 # Generate a new tile
                 await assign_random_tile(
@@ -228,7 +228,7 @@ class ApprovalCog(commands.Cog):
 
         return 0
 
-    async def _roll_basket_chance(self, category: int):
+    async def _roll_basket_chance(self, category: int, skip_team_id=None):
         config_names_by_category = {
             1: "basket_chance_easy",
             2: "basket_chance_medium",
@@ -249,11 +249,11 @@ class ApprovalCog(commands.Cog):
             return
 
         if random.randint(1, int(amount)) == 1:
-            did_spawn = await self._spawn_flower_basket()
+            did_spawn = await self._spawn_flower_basket(skip_team_id=skip_team_id)
             if did_spawn:
                 print("lucky!")
 
-    async def _spawn_flower_basket(self):
+    async def _spawn_flower_basket(self, skip_team_id=None):
         did_spawn = False
         print("spawning...")
 
@@ -327,6 +327,8 @@ class ApprovalCog(commands.Cog):
             )
 
             for team in all_teams:
+                if skip_team_id is not None and team["id"] == skip_team_id:
+                    continue
                 team_channel = self.bot.get_channel(int(team["discord_channel_id"]))
                 if team_channel is None:
                     try:

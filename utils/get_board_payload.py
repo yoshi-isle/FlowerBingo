@@ -25,6 +25,18 @@ async def get_board_payload(conn, team_id, team=None, new_tile_index=None):
     is_flower_basket_active = bool(
         game_state and game_state["is_flower_basket_active"]
     )
+    flower_basket_tile = None
+    if (
+        is_flower_basket_active
+        and game_state
+        and game_state["flower_basket_tile_id"]
+    ):
+        flower_basket_tile = await conn.fetchrow(
+            "SELECT * FROM public.tiles WHERE id = $1",
+            game_state["flower_basket_tile_id"],
+        )
+    
+    print(flower_basket_tile)
 
     board = await get_team_tiles(conn, team_id)
 
@@ -74,8 +86,15 @@ async def get_board_payload(conn, team_id, team=None, new_tile_index=None):
         board,
         new_tile_index,
         is_flower_basket_active,
+        flower_basket_tile
     )
-    embed = get_board_embed(team_record, board, reroll_timers, is_flower_basket_active)
+    embed = get_board_embed(
+        team_record,
+        board,
+        reroll_timers,
+        is_flower_basket_active,
+        flower_basket_tile,
+    )
     file = discord.File(fp=img, filename="board.png")
 
     return embed, file
