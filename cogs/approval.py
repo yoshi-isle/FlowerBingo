@@ -53,6 +53,22 @@ class ApprovalCog(commands.Cog):
             await self._handle_reaction(payload)
 
         if str(payload.emoji) == Emojis.NO:
+
+
+            # get every team channel
+            all_channels = await self.bot.db_pool.fetch(
+            "SELECT discord_channel_id from public.teams"
+        )
+            # for i in all_channels:
+            #     channel_id = i['discord_channel_id']
+            #     team_channel = self.bot.get_channel(int(channel_id))
+            #     if team_channel:
+            #         await team_channel.send("A FLOWER BASKET HAS SPAWNED")
+
+
+
+
+
             await self._handle_reaction(payload, is_approved=False)
         if str(payload.emoji) == Emojis.FORCE:
             await self._handle_reaction(payload, force_complete=True)
