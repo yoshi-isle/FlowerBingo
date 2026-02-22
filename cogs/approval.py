@@ -83,27 +83,18 @@ class ApprovalCog(commands.Cog):
         try:
             if str(payload.emoji) == Emojis.THUMBS_UP:
                 await self._handle_reaction(payload)
-
-        if str(payload.emoji) == Emojis.NO:
-
-
-            # get every team channel
-            all_channels = await self.bot.db_pool.fetch(
-            "SELECT discord_channel_id from public.teams"
-        )
-            # for i in all_channels:
-            #     channel_id = i['discord_channel_id']
-            #     team_channel = self.bot.get_channel(int(channel_id))
-            #     if team_channel:
-            #         await team_channel.send("A FLOWER BASKET HAS SPAWNED")
-
-
-
-
-
-            await self._handle_reaction(payload, is_approved=False)
-        if str(payload.emoji) == Emojis.FORCE:
-            await self._handle_reaction(payload, force_complete=True)
+            elif str(payload.emoji) == Emojis.NO:
+                # for i in all_channels:
+                #     channel_id = i['discord_channel_id']
+                #     team_channel = self.bot.get_channel(int(channel_id))
+                #     if team_channel:
+                #         await team_channel.send("A FLOWER BASKET HAS SPAWNED")
+                await self._handle_reaction(payload, is_approved=False)
+            elif str(payload.emoji) == Emojis.FORCE:
+                await self._handle_reaction(payload, force_complete=True)
+        finally:
+            async with self.cooldown_lock:
+                self.users_in_progress.discard(payload.user_id)
 
     async def _handle_reaction(self, payload, is_approved=True, force_complete=False):
         admin_message = await self._fetch_admin_message(payload)
