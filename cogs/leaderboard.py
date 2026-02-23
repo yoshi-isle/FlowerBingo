@@ -33,10 +33,25 @@ class LeaderboardCog(commands.Cog):
 
         top_teams = leaderboard
         lines = []
-        for index, team in enumerate(top_teams, start=1):
+        medals = [":first_place_medal:", ":second_place_medal:", ":third_place_medal:"]
+        prev_points = None
+        rank = 0
+        display_rank = 0
+        for team in top_teams:
             team_name = team["team_name"]
             points = team["points"]
-            lines.append(f"**#{index}** {team_name} — **{points} pts**")
+            # Handle ties: same rank for same points
+            if points != prev_points:
+                rank += 1
+                display_rank = rank
+            # Medal for top 3
+            if display_rank <= 3:
+                medal = medals[display_rank - 1]
+                rank_str = medal
+            else:
+                rank_str = f"#{display_rank}"
+            lines.append(f"**{rank_str}** {team_name} — **{points} pts**")
+            prev_points = points
 
         embed.description = "\n".join(lines)
         embed.add_field(name="", value=f"Next Update: <t:{next_update_ts}:R>", inline=False)
