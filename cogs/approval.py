@@ -85,11 +85,6 @@ class ApprovalCog(commands.Cog):
             if str(payload.emoji) == Emojis.THUMBS_UP:
                 await self._handle_reaction(payload)
             elif str(payload.emoji) == Emojis.NO:
-                # for i in all_channels:
-                #     channel_id = i['discord_channel_id']
-                #     team_channel = self.bot.get_channel(int(channel_id))
-                #     if team_channel:
-                #         await team_channel.send("A FLOWER BASKET HAS SPAWNED")
                 await self._handle_reaction(payload, is_approved=False)
             elif str(payload.emoji) == Emojis.FORCE:
                 await self._handle_reaction(payload, force_complete=True)
@@ -145,7 +140,7 @@ class ApprovalCog(commands.Cog):
                 )
 
         await self._update_admin_message(
-            admin_message, is_approved, payload.member.display_name
+            admin_message, is_approved, payload.member.display_name, updated_tile_assignment
         )
 
         # Get player message embed
@@ -365,7 +360,7 @@ class ApprovalCog(commands.Cog):
         )
 
     async def _update_admin_message(
-        self, admin_message: discord.Message, is_approved: bool, approver_name: str
+        self, admin_message: discord.Message, is_approved: bool, approver_name: str, updated_tile_assignment
     ):
         admin_embed = admin_message.embeds[0].copy()
         admin_embed.color = (
@@ -379,7 +374,7 @@ class ApprovalCog(commands.Cog):
         )
         # Remove field 3 (instructions)
         admin_embed.remove_field(3)
-        admin_embed.remove_footer()
+        admin_embed.set_footer(text=f"Submission ID: {updated_tile_assignment['id']}")
 
         receipt_channel = self.approved_channel if is_approved else self.denied_channel
         await receipt_channel.send(embed=admin_embed)

@@ -126,7 +126,8 @@ def generate_image(board, new_tile_index=None, is_flower_basket_active=False, fl
                 img_base64 = flower_basket_tile["image_data"]
                 img_data = base64.b64decode(img_base64)
                 flower_basket_img = Image.open(BytesIO(img_data))
-                flower_basket_img = flower_basket_img.resize(flower_basket_thumbnail_size, Image.LANCZOS)
+                # Resize while keeping aspect ratio
+                flower_basket_img.thumbnail(flower_basket_thumbnail_size, Image.LANCZOS)
                 flower_basket_img = flower_basket_img.convert("RGBA")
                 paste_image_with_shadow(
                     base_img,

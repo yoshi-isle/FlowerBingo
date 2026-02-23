@@ -17,6 +17,7 @@ class AdminCog(commands.Cog):
     @app_commands.command(
         name="admin_register_team", description="Register a new team (IN THIS CHANNEL)"
     )
+    @app_commands.checks.has_permissions(manage_messages=True)
     async def admin_register_team(
         self, interaction: discord.Interaction, team_name: str
     ):
@@ -50,6 +51,7 @@ class AdminCog(commands.Cog):
     @app_commands.command(
         name="admin_register_player", description="Register a player to a team"
     )
+    @app_commands.checks.has_permissions(manage_messages=True)
     @app_commands.autocomplete(team_name=team_autocomplete)
     async def admin_register_player(
         self, interaction: discord.Interaction, player: discord.User, team_name: str
@@ -92,6 +94,7 @@ class AdminCog(commands.Cog):
     @app_commands.command(
         name="admin_unregister_player", description="Removes a player from their team"
     )
+    @app_commands.checks.has_permissions(manage_messages=True)
     async def admin_unregister_player(
         self, interaction: discord.Interaction, player: discord.User
     ):
@@ -119,6 +122,7 @@ class AdminCog(commands.Cog):
     @app_commands.command(
         name="admin_get_team_list", description="Get the list of all teams"
     )
+    @app_commands.checks.has_permissions(manage_messages=True)
     async def admin_get_team_list(self, interaction: discord.Interaction):
         await interaction.response.defer()
         try:
@@ -157,6 +161,7 @@ class AdminCog(commands.Cog):
     @app_commands.command(
         name="admin_clear_all", description="(TESTING ONLY) Clear all data"
     )
+    @app_commands.checks.has_permissions(manage_messages=True)
     async def admin_clear_all(self, interaction: discord.Interaction):
         await interaction.response.defer()
         try:
@@ -175,8 +180,9 @@ class AdminCog(commands.Cog):
 
     @app_commands.command(
         name="admin_force_spawn",
-        description="Force spawn a tile for easy/med/hard/elite in this channel if none exists.",
+        description="[ADMIN] Force spawn a tile for easy/med/hard/elite in this channel if none exists.",
     )
+    @app_commands.checks.has_permissions(manage_messages=True)
     async def force_spawn(self, interaction: discord.Interaction, difficulty: str):
         difficulty_key = difficulty.strip().lower()
         category_by_difficulty = {
@@ -234,7 +240,8 @@ class AdminCog(commands.Cog):
         except Exception as e:
             await interaction.followup.send(f"Database error: {str(e)}")
 
-    @app_commands.command(name="admin_reveal", description="Reveal a board for the team in this channel.")
+    @app_commands.command(name="admin_reveal", description="[ADMIN] Reveal a board for the team in this channel.")
+    @app_commands.checks.has_permissions(manage_messages=True)
     async def admin_reveal(self, interaction: discord.Interaction):
         try:
             channel_id = interaction.channel.id
