@@ -16,7 +16,6 @@ async def create_submission(
         player = await get_player(conn, str(discord_id))
         # Get the tile assignment from the user
         team = await get_team_record(conn, str(discord_id))
-        print(player, team)
         # Get the tile data from the category
         assignment = await get_assignment(conn, team["id"], category)
 

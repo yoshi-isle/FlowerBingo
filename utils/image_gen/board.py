@@ -230,7 +230,7 @@ def generate_image(board, new_tile_index=None, is_flower_basket_active=False, fl
                 )
                 
 
-            for i, tile in enumerate(board):
+            for i, tile in enumerate(board[:4]):
                 img_base64 = tile["image_data"]
                 img_data = base64.b64decode(img_base64)
                 tile_img = Image.open(BytesIO(img_data))

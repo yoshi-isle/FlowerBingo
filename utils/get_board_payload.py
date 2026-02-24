@@ -36,8 +36,6 @@ async def get_board_payload(conn, team_id, team=None, new_tile_index=None):
             game_state["flower_basket_tile_id"],
         )
     
-    print(flower_basket_tile)
-
     board = await get_team_tiles(conn, team_id)
 
     # Get all reroll timers
