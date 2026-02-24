@@ -82,6 +82,8 @@ def generate_image(board, new_tile_index=None, is_flower_basket_active=False, fl
             CONFIG = json.load(f)
 
         # Load config values
+        
+        flower_basket_text_coords = tuple(CONFIG["flower_basket_text_coords"])
         flower_basket_image_coords = tuple(CONFIG["flower_basket_image_coords"])
         image_coords = {int(k): v for k, v in CONFIG["image_coords"].items()}
         tilename_coords = {int(k): v for k, v in CONFIG["tilename_coords"].items()}
@@ -169,6 +171,64 @@ def generate_image(board, new_tile_index=None, is_flower_basket_active=False, fl
                     ),
                     outline_layer,
                 )
+
+                # Draw text for flower basket
+                draw_text_with_shadow(
+                    draw,
+                    (flower_basket_text_coords[0], flower_basket_text_coords[1]),
+                    flower_basket_tile["tile_name"],
+                    smaller_font,
+                    (206, 133, 255),  # pastel purple
+                    title_stroke_width,
+                    stroke_color,
+                )
+
+                description = flower_basket_tile.get("description", "")
+
+                # Empty description fix for when it's "" empty string
+                if not description:
+                    description = "No description provided."
+
+                wrapped_lines = wrap_text(
+                    description, smaller_font, 350, draw
+                )
+
+                y_offset = flower_basket_text_coords[1] + base_font_size + line_spacing
+                for line in wrapped_lines:
+                    draw_text_with_shadow(
+                        draw,
+                        (flower_basket_text_coords[0], y_offset),
+                        line,
+                        smaller_font,
+                        (255, 255, 255),
+                        body_stroke_width,
+                        stroke_color,
+                    )
+                    y_offset += smaller_font_size + line_spacing
+
+                
+                # Draw point value for flower basket
+                draw_text_with_shadow(
+                    draw,
+                    (1150, 610),
+                    "+999",
+                    header_font,
+                    (206, 133, 255),  # pastel purple
+                    title_stroke_width,
+                    stroke_color,
+                )
+
+                # Draw point value for flower basket
+                draw_text_with_shadow(
+                    draw,
+                    (865, 610),
+                    "Global Event",
+                    header_font,
+                    (230, 230, 230),  # gray
+                    title_stroke_width,
+                    stroke_color,
+                )
+                
 
             for i, tile in enumerate(board):
                 img_base64 = tile["image_data"]
