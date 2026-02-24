@@ -4,6 +4,7 @@ from datetime import timedelta, datetime, timezone
 import discord
 
 from embeds.board import get_board_embed
+from utils.get_global_state import get_global_state
 from utils.get_team_tiles import get_team_tiles
 from utils.image_gen.board import generate_image
 
@@ -19,22 +20,10 @@ async def get_board_payload(conn, team_id, team=None, new_tile_index=None):
     if not team_record:
         return None, None
 
-    game_state = await conn.fetchrow(
-        "SELECT * FROM public.global_game_states ORDER BY id DESC LIMIT 1"
-    )
+    game_state = await get_global_state(conn)
     is_flower_basket_active = bool(
         game_state and game_state["is_flower_basket_active"]
     )
-    flower_basket_tile = None
-    if (
-        is_flower_basket_active
-        and game_state
-        and game_state["flower_basket_tile_id"]
-    ):
-        flower_basket_tile = await conn.fetchrow(
-            "SELECT * FROM public.tiles WHERE id = $1",
-            game_state["flower_basket_tile_id"],
-        )
     
     board = await get_team_tiles(conn, team_id)
 
@@ -76,6 +65,11 @@ async def get_board_payload(conn, team_id, team=None, new_tile_index=None):
             reroll_timers.append("**You can re-roll!**")
         else:
             reroll_timers.append(reroll_timer)
+
+    # Todo - Future me will have a hard time understanding this
+    flower_basket_tile = None
+    if len(board) == 5:
+        flower_basket_tile = board[4]
     
 
     # Get reroll configuration from db

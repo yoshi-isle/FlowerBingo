@@ -29,6 +29,7 @@
     "2": "#C8B8E8",
     "3": "#A5D4C8"
   },
+  "flower_basket_text_coords": [],
   "flower_basket_image_coords": [600,600],
   "text_box_width": 880,
   "base_font_size": 52,

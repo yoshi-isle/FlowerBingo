@@ -1,3 +1,5 @@
+import datetime
+
 import discord
 from discord.ext import commands
 import os
@@ -251,10 +253,7 @@ class ApprovalCog(commands.Cog):
 
     async def _spawn_flower_basket(self, skip_team_id=None):
         did_spawn = False
-        print("spawning...")
-
         try:
-
             async with self.bot.db_pool.acquire() as conn:
                 async with conn.transaction():
                     game_state = await conn.fetchrow(
@@ -271,11 +270,12 @@ class ApprovalCog(commands.Cog):
                         return False
 
                     if game_state["is_flower_basket_active"]:
+                        # You have a funny feeling like you would have spawned a flower basket...
                         return False
 
-                    flower_basket_tile_id = await conn.fetchval(
+                    flower_basket_tile = await conn.fetchrow(
                         """
-                        SELECT id
+                        SELECT *
                         FROM public.tiles
                         WHERE category = 5
                             AND id NOT IN (
@@ -286,21 +286,24 @@ class ApprovalCog(commands.Cog):
                         """
                     )
 
-                    if not flower_basket_tile_id:
+                    if not flower_basket_tile:
                         return False
 
-                    await conn.execute(
+                    await conn.fetchrow(
                         """
                         UPDATE public.global_game_states
-                        SET flower_basket_tile_id = $1,
-                            is_flower_basket_active = true
-                        WHERE id = $2
+                        SET is_flower_basket_active = true,
+                            flower_basket_expires = $1
+                        WHERE id = (
+                            SELECT id FROM public.global_game_states
+                            ORDER BY id ASC
+                            LIMIT 1
+                        )
                         """,
-                        flower_basket_tile_id,
-                        game_state["id"],
+                        datetime.datetime.fromtimestamp(time.time() + 86400),
                     )
 
-                    await conn.execute(
+                    await conn.fetchrow(
                         """
                         INSERT INTO public.flower_basket_history (tile_id)
                         SELECT $1
@@ -310,7 +313,7 @@ class ApprovalCog(commands.Cog):
                             WHERE tile_id = $1
                         )
                         """,
-                        flower_basket_tile_id,
+                        flower_basket_tile["id"],
                     )
 
                     did_spawn = True
@@ -323,6 +326,21 @@ class ApprovalCog(commands.Cog):
             )
 
             for team in all_teams:
+                
+                # Insert the flower basket into their tile assignment.
+                await self.bot.db_pool.fetch(
+                    """
+                    INSERT INTO public.tile_assignments 
+                    (team_id, tile_id, is_active, category, remaining_submissions, created_at)
+                    VALUES ($1, $2, $3, $4, $5, NOW())
+                    """,
+                    team["id"],
+                    flower_basket_tile["id"],
+                    True,
+                    5,
+                    flower_basket_tile["completion_counter"],
+                )
+
                 if skip_team_id is not None and team["id"] == skip_team_id:
                     continue
                 team_channel = self.bot.get_channel(int(team["discord_channel_id"]))

@@ -26,8 +26,8 @@ def get_board_embed(team, board, reroll_timers, is_flower_basket_active, flower_
             else "Unknown tile"
         )
         embed.add_field(
-            name="💮 Flower Basket 💮",
-            value=f"There's a flower basket active!\nCurrent tile: {flower_basket_name}",
+            name=f"💮 {flower_basket_name} (`{flower_basket_tile.get('remaining_submissions', 'Error')}` remaining)",
+            value="Re-roll: -",
             inline=False,
         )
 
