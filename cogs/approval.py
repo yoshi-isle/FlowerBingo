@@ -116,6 +116,7 @@ class ApprovalCog(commands.Cog):
         team = await self._get_team_for_submission(tile_submission_updated)
         team_channel = self.bot.get_channel(int(team["discord_channel_id"]))
 
+        updated_tile_assignment = None
         if is_approved:
             updated_tile_assignment = await self._update_tile_assignment(
                 tile_submission_updated, force_complete
@@ -374,7 +375,10 @@ class ApprovalCog(commands.Cog):
         )
         # Remove field 3 (instructions)
         admin_embed.remove_field(3)
-        admin_embed.set_footer(text=f"Submission ID: {updated_tile_assignment['id']}")
+        if updated_tile_assignment:
+            admin_embed.set_footer(text=f"Submission ID: {updated_tile_assignment['id']}")
+        else:
+            admin_embed.set_footer(text="")
 
         receipt_channel = self.approved_channel if is_approved else self.denied_channel
         await receipt_channel.send(embed=admin_embed)
