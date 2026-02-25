@@ -36,6 +36,7 @@ async def get_board_payload(conn, team_id, team=None, new_tile_index=None):
     assignment_created_at_by_category = {
         row["category"]: row["created_at"] for row in assignments_created_at
     }
+
     config_names = ["easy_reroll_hours", "medium_reroll_hours", "hard_reroll_hours", "elite_reroll_hours"]
     for i in range(4):
 
@@ -59,8 +60,6 @@ async def get_board_payload(conn, team_id, team=None, new_tile_index=None):
 
         # Convert it to fancy discord <T:23342:R> or whatever for relative
         reroll_timer = f"<t:{int(created_at.timestamp())}:R>"
-
-        # lol
         if datetime.now(timezone.utc) > created_at:
             reroll_timers.append("**You can re-roll!**")
         else:
@@ -70,7 +69,8 @@ async def get_board_payload(conn, team_id, team=None, new_tile_index=None):
     flower_basket_tile = None
     if len(board) == 5:
         flower_basket_tile = board[4]
-    
+        reroll_timer = f"<t:{int(game_state['flower_basket_expires'].timestamp())}:R>"
+        reroll_timers.append(reroll_timer)
 
     # Get reroll configuration from db
     img = await asyncio.to_thread(

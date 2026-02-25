@@ -35,7 +35,7 @@ def get_board_embed(team, board, reroll_timers, is_flower_basket_active, flower_
         )
         embed.add_field(
             name=f"💮 {flower_basket_name} (`{flower_basket_tile.get('remaining_submissions', 'Error')}` remaining)",
-            value="Re-roll: -",
+            value=f"Re-roll: {reroll_timers[4]}",
             inline=False,
         )
 
