@@ -211,6 +211,10 @@ class PlayerCog(commands.Cog):
                 content="You can only use `/reroll` in your team's channel."
             )
             return
+        
+        if option == 5:
+            await interaction.response.send_message("Hey, you can't reroll a flower basket! But nice try.")
+            return
 
         # Get tile assignment by category
         tile_assignment = await self.bot.db_pool.fetchrow(
