@@ -213,6 +213,55 @@ class ApprovalCog(commands.Cog):
                     tile_submission["tile_assignment_id"],
                 )
 
+            # If they completed a flower basket
+            if updated_tile_assignment["category"] == 5:
+                all_teams = await self.bot.db_pool.fetch(
+                "SELECT id, discord_channel_id, team_name FROM public.teams WHERE discord_channel_id IS NOT NULL"
+            )
+
+                for team in all_teams:
+                    # Remove flower basket from global config AND tile assignments worldwide
+                    award_points = team["id"] != updated_tile_assignment["team_id"]
+                    await self.bot.db_pool.fetch(
+                        """
+                        UPDATE public.tile_assignments 
+                        SET is_active=false, was_skipped=$1
+                        WHERE category=5 AND team_id=$2
+                        """,
+                        award_points,
+                        team["id"],
+                    )
+
+                    # Update the first row from global_config
+                    await self.bot.db_pool.fetch(
+                        """
+                        UPDATE public.global_game_states
+                        SET is_flower_basket_active=false, flower_basket_expires=null
+                        WHERE id=0
+                        """
+                    )
+
+                    team_channel = self.bot.get_channel(int(team["discord_channel_id"]))
+                    if team_channel is None:
+                        try:
+                            team_channel = await self.bot.fetch_channel(
+                                int(team["discord_channel_id"])
+                            )
+                        except Exception:
+                            continue
+
+                    if not team_channel:
+                        continue
+
+                    await team_channel.send("Another team completed the flower basket.")
+                    team_embed, file = await get_board_payload(
+                        self.bot.db_pool,
+                        team_id=team["id"],
+                        team=team # I really dont know anymore lmfao
+                    )
+                    if team_embed and file:
+                        await team_channel.send(embed=team_embed, file=file)
+            else:
                 await self._roll_basket_chance(tile_assignment["category"], skip_team_id=tile_assignment["team_id"])
 
                 # Generate a new tile
@@ -247,9 +296,7 @@ class ApprovalCog(commands.Cog):
             return
 
         if random.randint(1, int(amount)) == 1:
-            did_spawn = await self._spawn_flower_basket(skip_team_id=skip_team_id)
-            if did_spawn:
-                print("lucky!")
+            await self._spawn_flower_basket(skip_team_id=skip_team_id)
 
     async def _spawn_flower_basket(self, skip_team_id=None):
         did_spawn = False

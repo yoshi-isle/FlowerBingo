@@ -6,12 +6,12 @@ from constants import Emojis
 def get_board_embed(team, board, reroll_timers, is_flower_basket_active, flower_basket_tile=None):
     embed = Embed(title=team['team_name'])
 
-    if team['color_hex']:
+    if team.get('color_hex', None):
         embed.color = int(team['color_hex'].replace("#", ""), 16)
     else:
         embed.color = 0xFFB6C1
         
-    if team['image_url']:
+    if team.get('image_url', None):
         embed.set_thumbnail(url=team['image_url'])
     else:
         embed.set_thumbnail(
