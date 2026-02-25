@@ -123,24 +123,49 @@ def generate_image(board, new_tile_index=None, is_flower_basket_active=False, fl
             points_font = ImageFont.truetype(FONT_PATH, size=points_font_size)
             smaller_font = ImageFont.truetype(FONT_PATH, size=smaller_font_size)
 
-            # Flower basket. flower_basket_image_coords paste
+
+            # Flower basket. Center and scale image in bounding box
             if flower_basket_tile:
                 img_base64 = flower_basket_tile["image_data"]
                 img_data = base64.b64decode(img_base64)
-                flower_basket_img = Image.open(BytesIO(img_data))
-                # Resize while keeping aspect ratio
-                flower_basket_img.thumbnail(flower_basket_thumbnail_size, Image.LANCZOS)
-                flower_basket_img = flower_basket_img.convert("RGBA")
+                flower_basket_img = Image.open(BytesIO(img_data)).convert("RGBA")
+
+                # Bounding box corners from config
+                fb_box = CONFIG.get("flower_basket_bounding_box", None)
+                if fb_box:
+                    # fb_box should be [x1, y1, x2, y2] (top-left, bottom-right)
+                    x1, y1, x2, y2 = fb_box
+                else:
+                    # Fallback: use flower_basket_image_coords and thumbnail size
+                    x1, y1 = flower_basket_image_coords
+                    x2 = x1 + flower_basket_thumbnail_size[0]
+                    y2 = y1 + flower_basket_thumbnail_size[1]
+
+                box_width = x2 - x1
+                box_height = y2 - y1
+
+                # Scale image to fit bounding box, keep aspect ratio
+                img_w, img_h = flower_basket_img.size
+                scale = min(box_width / img_w, box_height / img_h)
+                new_w = int(img_w * scale)
+                new_h = int(img_h * scale)
+                flower_basket_img = flower_basket_img.resize((new_w, new_h), Image.LANCZOS)
+
+                # Center image in bounding box
+                paste_x = x1 + (box_width - new_w) // 2
+                paste_y = y1 + (box_height - new_h) // 2
+
                 paste_image_with_shadow(
                     base_img,
                     flower_basket_img,
-                    tuple(flower_basket_image_coords),
+                    (paste_x, paste_y),
                 )
                 base_img.paste(
                     flower_basket_img,
-                    tuple(flower_basket_image_coords),
+                    (paste_x, paste_y),
                     flower_basket_img,
                 )
+
                 # Purple outline around flower basket
                 effect_padding = flower_basket_outline_width + 1
                 alpha_canvas = Image.new(
@@ -166,8 +191,8 @@ def generate_image(board, new_tile_index=None, is_flower_basket_active=False, fl
                 base_img.paste(
                     outline_layer,
                     (
-                        flower_basket_image_coords[0] - effect_padding,
-                        flower_basket_image_coords[1] - effect_padding,
+                        paste_x - effect_padding,
+                        paste_y - effect_padding,
                     ),
                     outline_layer,
                 )
@@ -184,15 +209,11 @@ def generate_image(board, new_tile_index=None, is_flower_basket_active=False, fl
                 )
 
                 description = flower_basket_tile.get("description", "")
-
-                # Empty description fix for when it's "" empty string
                 if not description:
                     description = "No description provided."
-
                 wrapped_lines = wrap_text(
                     description, smaller_font, 350, draw
                 )
-
                 y_offset = flower_basket_text_coords[1] + base_font_size + line_spacing
                 for line in wrapped_lines:
                     draw_text_with_shadow(
@@ -206,7 +227,6 @@ def generate_image(board, new_tile_index=None, is_flower_basket_active=False, fl
                     )
                     y_offset += smaller_font_size + line_spacing
 
-                
                 # Draw point value for flower basket
                 draw_text_with_shadow(
                     draw,
@@ -217,8 +237,6 @@ def generate_image(board, new_tile_index=None, is_flower_basket_active=False, fl
                     title_stroke_width,
                     stroke_color,
                 )
-
-                # Draw point value for flower basket
                 draw_text_with_shadow(
                     draw,
                     (865, 610),
@@ -228,8 +246,6 @@ def generate_image(board, new_tile_index=None, is_flower_basket_active=False, fl
                     title_stroke_width,
                     stroke_color,
                 )
-                
-
             for i, tile in enumerate(board[:4]):
                 img_base64 = tile["image_data"]
                 img_data = base64.b64decode(img_base64)

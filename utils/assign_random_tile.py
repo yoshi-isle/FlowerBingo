@@ -14,13 +14,13 @@ async def assign_random_tile(conn: asyncpg.Connection, team_id: int, category: i
     if existing_assignment:
         raise ValueError(f"Team already has a tile assignment for category {category}")
 
-    # Get the last 3 completed tiles for this team and category (k=3 approach)
+    # Get the last 10 completed tiles for this team and category (k=10 approach)
     last_completed_tiles = await conn.fetch(
         """
         SELECT tile_id FROM public.tile_assignments 
         WHERE team_id = $1 AND category = $2 AND is_active = false 
         ORDER BY created_at DESC 
-        LIMIT 3
+        LIMIT 10
         """,
         team_id,
         category,
