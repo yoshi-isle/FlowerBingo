@@ -130,16 +130,11 @@ def generate_image(board, new_tile_index=None, is_flower_basket_active=False, fl
                 img_data = base64.b64decode(img_base64)
                 flower_basket_img = Image.open(BytesIO(img_data)).convert("RGBA")
 
-                # Bounding box corners from config
-                fb_box = CONFIG.get("flower_basket_bounding_box", None)
-                if fb_box:
-                    # fb_box should be [x1, y1, x2, y2] (top-left, bottom-right)
-                    x1, y1, x2, y2 = fb_box
-                else:
-                    # Fallback: use flower_basket_image_coords and thumbnail size
-                    x1, y1 = flower_basket_image_coords
-                    x2 = x1 + flower_basket_thumbnail_size[0]
-                    y2 = y1 + flower_basket_thumbnail_size[1]
+                # Bounding box corners
+                
+                x1, y1 = flower_basket_image_coords
+                x2 = x1 + flower_basket_thumbnail_size[0] * 2
+                y2 = y1 + flower_basket_thumbnail_size[1] * 2
 
                 box_width = x2 - x1
                 box_height = y2 - y1

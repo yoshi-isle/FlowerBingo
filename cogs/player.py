@@ -99,7 +99,14 @@ class PlayerCog(commands.Cog):
 
     @app_commands.command(name="submit", description="Submit a tile")
     @app_commands.autocomplete(option=submit_autocomplete)
-    async def submit(self, interaction: discord.Interaction, option: int):
+    async def submit(self, interaction: discord.Interaction, option: int, image: discord.Attachment):
+        # Guard - ensure image is an image file.
+        if not image.content_type.startswith("image/"):
+            await interaction.response.send_message(
+                "Looks like that isn't an image file. Please upload an image file for your submission."
+            )
+            return
+        
         team = await get_team_record(self.bot.db_pool, interaction.user.id)
         if not team:
             await interaction.response.send_message(
@@ -125,7 +132,7 @@ class PlayerCog(commands.Cog):
         player_team_channel = self.bot.get_channel(int(__player_channel_id))
         admin_channel = self.bot.get_channel(int(__submission_channel_id))
 
-        receipt_embed, submission_embed = get_submission_embed(interaction, tile, team)
+        receipt_embed, submission_embed = get_submission_embed(interaction, tile, team, image)
 
         __player_embed_message = await player_team_channel.send(embed=receipt_embed)
         __admin_embed_message = await admin_channel.send(embed=submission_embed)

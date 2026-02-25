@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+from discord import Embed
 from discord.ext import commands, tasks
 from utils.get_board_payload import get_board_payload
 from utils.get_global_state import get_global_state
@@ -57,7 +58,7 @@ class TimersCog(commands.Cog):
                     if not team_channel:
                         continue
 
-                    await team_channel.send("The flower basket event has expired.")
+                    await team_channel.send(embed=Embed(description="🕐The flower basket event has expired."))
                     team_embed, file = await get_board_payload(
                         self.bot.db_pool,
                         team_id=team["id"],
