@@ -118,7 +118,8 @@ class AdminCog(commands.Cog):
     @app_commands.checks.has_permissions(manage_messages=True)
     async def admin_reveal(self, interaction: discord.Interaction):
         try:
-            channel_id = interaction.channel.id
+            channel = interaction.channel
+            channel_id = channel.id
             async with self.bot.db_pool.acquire() as conn:
                 team = await conn.fetchrow(
                     "SELECT * FROM public.teams WHERE discord_channel_id = $1",
@@ -132,7 +133,21 @@ class AdminCog(commands.Cog):
                     team["id"],
                     team=team,
                 )
-                await interaction.response.send_message(embed=team_embed, file=file)
+                # Unpin all messages in the channel
+                pinned = await channel.pins()
+                for msg in pinned:
+                    try:
+                        await msg.unpin()
+                    except Exception:
+                        pass
+                # Send and pin the board
+                board_message = await interaction.response.send_message(embed=team_embed, file=file)
+                # interaction.response.send_message returns None, so fetch the last message
+                sent = await channel.fetch_message(channel.last_message_id)
+                try:
+                    await sent.pin()
+                except Exception:
+                    pass
         except Exception as e:
             print(e)
 

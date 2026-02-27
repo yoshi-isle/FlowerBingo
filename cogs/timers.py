@@ -58,14 +58,26 @@ class TimersCog(commands.Cog):
                     if not team_channel:
                         continue
 
+                    # Unpin all messages in the channel
+                    try:
+                        pinned_messages = await team_channel.pins()
+                        for msg in pinned_messages:
+                            await msg.unpin()
+                    except Exception as e:
+                        print(f"Failed to unpin messages in {team_channel}: {e}")
+
                     await team_channel.send(embed=Embed(description="🕐The flower basket event has expired."))
                     team_embed, file = await get_board_payload(
                         self.bot.db_pool,
                         team_id=team["id"],
-                        team=team # I really dont know anymore lmfao
+                        team=team
                     )
                     if team_embed and file:
-                        await team_channel.send(embed=team_embed, file=file)
+                        board_msg = await team_channel.send(embed=team_embed, file=file)
+                        try:
+                            await board_msg.pin()
+                        except Exception as e:
+                            print(f"Failed to pin board message in {team_channel}: {e}")
         except Exception as e:
             print(f"Error in check_flower_basket_expiration: {e}")
 

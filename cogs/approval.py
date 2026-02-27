@@ -127,6 +127,13 @@ class ApprovalCog(commands.Cog):
             # Note: The new tile generation has already happened at this point. This is solely for UX
             if updated_tile_assignment["remaining_submissions"] <= 0:
                 await team_channel.send(embed=discord.Embed(description=f"**Tile** complete! {Emojis.THUMBS_UP} Posting your new board..."))
+                # Unpin all previous messages
+                async for msg in team_channel.history(limit=100):
+                    if msg.pinned:
+                        try:
+                            await msg.unpin()
+                        except Exception:
+                            pass
                 team_embed, file = await get_board_payload(
                     self.bot.db_pool,
                     team["id"],
@@ -134,7 +141,11 @@ class ApprovalCog(commands.Cog):
                     new_tile_index=updated_tile_assignment["category"],
                 )
                 if team_embed and file:
-                    await team_channel.send(embed=team_embed, file=file)
+                    board_msg = await team_channel.send(embed=team_embed, file=file)
+                    try:
+                        await board_msg.pin()
+                    except Exception:
+                        pass
             else:
                 await team_channel.send(embed=discord.Embed(description=f"Your team made progress on the tile. You still need {updated_tile_assignment['remaining_submissions']}."))
                 
@@ -251,15 +262,25 @@ class ApprovalCog(commands.Cog):
                             continue
 
                         if award_points:
-
                             await team_channel.send(embed=discord.Embed(description="Another team completed the flower basket."))
+                            # Unpin all previous messages
+                            async for msg in team_channel.history(limit=100):
+                                if msg.pinned:
+                                    try:
+                                        await msg.unpin()
+                                    except Exception:
+                                        pass
                             team_embed, file = await get_board_payload(
                                 self.bot.db_pool,
                                 team_id=team["id"],
-                                team=team # I really dont know anymore lmfao
+                                team=team
                             )
                             if team_embed and file:
-                                await team_channel.send(embed=team_embed, file=file)
+                                board_msg = await team_channel.send(embed=team_embed, file=file)
+                                try:
+                                    await board_msg.pin()
+                                except Exception:
+                                    pass
                 else:
                     await self._roll_basket_chance(tile_assignment["category"], skip_team_id=tile_assignment["team_id"])
 

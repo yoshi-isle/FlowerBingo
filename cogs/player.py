@@ -66,8 +66,20 @@ class PlayerCog(commands.Cog):
                         content=f"❗Critical Error: {team_embed}"
                     )
                     return
+
+                # Unpin all messages in the channel
+                pins = await interaction.channel.pins()
+                for msg in pins:
+                    await msg.unpin()
+
+                # Send and pin the new board
+                board_msg = await interaction.channel.send(embed=team_embed, file=file)
+                await board_msg.pin()
+
                 await interaction.edit_original_response(
-                    embed=team_embed, attachments=[file]
+                    content="Here's your updated board!",
+                    embed=team_embed,
+                    attachments=[file]
                 )
         except Exception as e:
             print(f"Error getting board for {interaction.user.display_name}", e)
@@ -275,8 +287,17 @@ class PlayerCog(commands.Cog):
                     )
                     await assign_random_tile(conn, team["id"], option)
                     await interaction.response.send_message(f"{interaction.user.display_name} Re-rolled the tile! Updating your board...")
+
                     embed, file = await get_board_payload(conn, team["id"], team=team)
-                    await interaction.channel.send(embed=embed, file=file)
+                    
+                    # Unpin all messages in the channel
+                    pins = await interaction.channel.pins()
+                    for msg in pins:
+                        await msg.unpin()
+                    
+                    # Send and pin the new board
+                    board_msg = await interaction.channel.send(embed=embed, file=file)
+                    await board_msg.pin()
                     return
         
         # Convert it to discord short date and time format
