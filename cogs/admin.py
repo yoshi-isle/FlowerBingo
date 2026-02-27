@@ -66,29 +66,38 @@ class AdminCog(commands.Cog):
     async def admin_rollback(self, interaction: discord.Interaction, submission_id: int):
         try:
             async with self.bot.db_pool.acquire() as conn:
-                assignment = await conn.fetchrow(
-                    "SELECT team_id FROM public.tile_assignments WHERE id = $1",
+                assignment_to_add_back = await conn.fetchrow(
+                    "SELECT * FROM public.tile_assignments WHERE id = $1",
                     submission_id
                 )
                 team = await conn.fetchrow(
                     "SELECT team_name FROM public.teams WHERE id = $1",
-                    assignment["team_id"]
+                    assignment_to_add_back["team_id"]
                 )
 
-                # Fetch the most recent assignment for this team and set it to inactive
-                most_recent = await conn.execute(
-                    "UPDATE public.tile_assignments SET is_active = false WHERE team_id = $1 AND category = $2 LIMIT 1 RETURNING id",
-                    assignment["team_id"],
-                    assignment.get("category")
-                )
+                # Execute both statements in a single transaction block
+                async with conn.transaction():
+                    # Fetch the most recent assignment for this team and delete it
+                    most_recent = await conn.fetchrow(
+                        "DELETE FROM public.tile_assignments WHERE is_active = true AND team_id = $1 AND category = $2 RETURNING id",
+                        assignment_to_add_back["team_id"],
+                        assignment_to_add_back["category"]
+                    )
 
-                # Rollback the tile assignment with the given submission_id
-                await conn.execute(
-                    "UPDATE public.tile_assignments SET is_active = true WHERE id = $1",
-                    submission_id
-                )
+                    # Delete the submission too with the given submission_id
+                    # await conn.execute(
+                    #     "DELETE from public.tile_submissions WHERE tile_assignment_id = $1",
+                    #     submission_id
+                    # )
+                        
+
+                    # Rollback the tile assignment with the given submission_id
+                    await conn.execute(
+                        "UPDATE public.tile_assignments SET is_active = true, remaining_submissions = 1 WHERE id = $1",
+                        submission_id
+                    )
                 
-                await interaction.response.send_message(f"✅ [ADMIN] Performed an emergency rollback. Undid tile assignment {most_recent} and re-activated #{submission_id} for this team: {team['team_name']}")
+                await interaction.response.send_message(f"✅ [ADMIN] Performed an emergency rollback. Undid tile assignment {most_recent['id']  } and re-activated #{submission_id} for this team: {team['team_name']}")
         except Exception as e:
             print(e)
 

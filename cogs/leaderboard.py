@@ -100,7 +100,7 @@ class LeaderboardCog(commands.Cog):
 
         return None
 
-    @tasks.loop(minutes=2)
+    @tasks.loop(seconds=4)
     async def update_leaderboard_embed(self):
         if not self.leaderboard_channel_id:
             return

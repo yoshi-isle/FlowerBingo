@@ -9,7 +9,7 @@ services:
     volumes:
       - .:/app
     working_dir: /app
-    command: python bot.py
+    command: python -u bot.py
     restart: unless-stopped
 
 volumes:

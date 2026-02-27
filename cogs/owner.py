@@ -15,10 +15,10 @@ class OwnerCog(commands.Cog):
         self.bot = bot
 
     @app_commands.command(
-        name="admin_register_team", description="Register a new team (IN THIS CHANNEL)"
+        name="owner_register_team", description="[OWNER] Register a new team (IN THIS CHANNEL)"
     )
     @commands.has_permissions(administrator=True)
-    async def admin_register_team(
+    async def owner_register_team(
         self, interaction: discord.Interaction, team_name: str
     ):
         try:
