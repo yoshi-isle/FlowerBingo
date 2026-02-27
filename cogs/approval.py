@@ -29,7 +29,7 @@ class ApprovalCog(commands.Cog):
             Emojis.NO,
             Emojis.FORCE,
         ]
-        self.reaction_cooldown_seconds = 10
+        self.reaction_cooldown_seconds = 6
         self.last_reaction_by_user = {}
         self.users_in_progress = set()
         self.cooldown_lock = asyncio.Lock()
@@ -75,7 +75,7 @@ class ApprovalCog(commands.Cog):
                 if elapsed < self.reaction_cooldown_seconds:
                     remaining = int(self.reaction_cooldown_seconds - elapsed)
                     await channel.send(
-                        f"Rate limit: please wait {remaining}s before reacting again.",
+                        f"On cooldown: please wait {remaining}s and try again <@{payload.user_id}>.",
                         delete_after=max(remaining, 1),
                     )
                     return

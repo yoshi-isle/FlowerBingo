@@ -13,7 +13,7 @@ async def get_team_tiles(conn: asyncpg.Connection, team_id):
 
         if not tile_assignment and category in [1, 2, 3, 4]:
             names = {
-                1: "Wildflower (+10)",
+                1: "Wildflower (+5)",
                 2: "Rose (+50)",
                 3: "Tulip (+200)",
                 4: "Orchid (+400)",

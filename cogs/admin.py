@@ -15,7 +15,7 @@ class AdminCog(commands.Cog):
         name="admin_force_spawn",
         description="[ADMIN] Force spawn a tile for the team in this channel if none exists.",
     )
-    @app_commands.choices(difficulty=[app_commands.Choice(name="Wildflower (+10)", value=1),
+    @app_commands.choices(difficulty=[app_commands.Choice(name="Wildflower (+5)", value=1),
                 app_commands.Choice(name="Rose (+50)", value=2),
                 app_commands.Choice(name="Tulip (+200)", value=3),
                 app_commands.Choice(name="Orchid (+400)", value=4),])

@@ -17,7 +17,7 @@ class OwnerCog(commands.Cog):
     @app_commands.command(
         name="owner_register_team", description="[OWNER] Register a new team (IN THIS CHANNEL)"
     )
-    @commands.has_permissions(administrator=True)
+    @app_commands.checks.has_permissions(administrator=True)
     async def owner_register_team(
         self, interaction: discord.Interaction, team_name: str
     ):
@@ -51,7 +51,7 @@ class OwnerCog(commands.Cog):
     @app_commands.command(
         name="owner_register_player", description="[OWNER] Register a player to a team"
     )
-    @commands.has_permissions(administrator=True)
+    @app_commands.checks.has_permissions(administrator=True)
     @app_commands.autocomplete(team_name=team_autocomplete)
     async def owner_register_player(
         self, interaction: discord.Interaction, player: discord.User, team_name: str
@@ -94,7 +94,7 @@ class OwnerCog(commands.Cog):
     @app_commands.command(
         name="owner_unregister_player", description="[OWNER] Removes a player from their team"
     )
-    @commands.has_permissions(administrator=True)
+    @app_commands.checks.has_permissions(administrator=True)
     async def owner_unregister_player(
         self, interaction: discord.Interaction, player: discord.User
     ):
@@ -157,27 +157,6 @@ class OwnerCog(commands.Cog):
             await interaction.followup.send("Teams:\n- " + "\n- ".join(team_list))
         except Exception as e:
             await interaction.followup.send(f"Database error: {str(e)}")
-
-    @app_commands.command(
-        name="owner_clear_all", description="(TESTING ONLY) Clear all data"
-    )
-    @commands.has_permissions(administrator=True)
-    async def owner_clear_all(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-        try:
-            async with self.bot.db_pool.acquire() as conn:
-                # Clear everything
-                await conn.fetch("DELETE from public.teams")
-                await conn.fetch("DELETE from public.tile_assignments")
-                await conn.fetch("DELETE from public.tile_submissions")
-                await conn.fetch("DELETE from public.players")
-
-                # Clear every message in this channel, too
-                await interaction.channel.purge(limit=100)
-            await interaction.followup.send("All bingo data has been cleared.")
-        except Exception as e:
-            await interaction.followup.send(f"Database error: {str(e)}")
-
     
 
 async def setup(bot):

@@ -142,6 +142,9 @@ class PlayerCog(commands.Cog):
         __player_embed_message = await player_team_channel.send(embed=receipt_embed)
         __admin_embed_message = await admin_channel.send(embed=submission_embed)
 
+        # Ping @here
+        await admin_channel.send(content="@here", delete_after=3)
+
         await create_submission(
             conn=self.bot.db_pool,
             discord_id=interaction.user.id,
