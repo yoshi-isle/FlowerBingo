@@ -74,7 +74,21 @@ class AdminCog(commands.Cog):
                     "SELECT team_name FROM public.teams WHERE id = $1",
                     assignment["team_id"]
                 )
-                await interaction.response.send_message(f"This doesn't do anyhthing yet, but it will rollback submission #{submission_id} for this team. {team['team_name']}")
+
+                # Fetch the most recent assignment for this team and set it to inactive
+                most_recent = await conn.execute(
+                    "UPDATE public.tile_assignments SET is_active = false WHERE team_id = $1 AND category = $2 LIMIT 1 RETURNING id",
+                    assignment["team_id"],
+                    assignment.get("category")
+                )
+
+                # Rollback the tile assignment with the given submission_id
+                await conn.execute(
+                    "UPDATE public.tile_assignments SET is_active = true WHERE id = $1",
+                    submission_id
+                )
+                
+                await interaction.response.send_message(f"✅ [ADMIN] Performed an emergency rollback. Undid tile assignment {most_recent} and re-activated #{submission_id} for this team: {team['team_name']}")
         except Exception as e:
             print(e)
 
