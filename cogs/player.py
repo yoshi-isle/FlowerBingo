@@ -61,6 +61,11 @@ class PlayerCog(commands.Cog):
                     team["id"],
                     team=team,
                 )
+                if file is None and isinstance(team_embed, str):
+                    await interaction.edit_original_response(
+                        content=f"❗Critical Error: {team_embed}"
+                    )
+                    return
                 await interaction.edit_original_response(
                     embed=team_embed, attachments=[file]
                 )

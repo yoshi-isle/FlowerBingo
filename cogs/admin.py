@@ -54,8 +54,8 @@ class AdminCog(commands.Cog):
                 )
 
                 tile_name = tile["tile_name"] if tile else "Unknown tile"
-                await interaction.followup.send(
-                    f"{Emojis.THUMBS_UP} Spawned {difficulty} tile for {team['team_name']}: {tile_name}"
+                await interaction.followup.send(embed=discord.Embed(description=
+                    f"{Emojis.THUMBS_UP} Force spawned a random tile for {team['team_name']}: {tile_name}")
                 )
 
         except Exception as e:
@@ -66,10 +66,25 @@ class AdminCog(commands.Cog):
     async def admin_rollback(self, interaction: discord.Interaction, submission_id: int):
         try:
             async with self.bot.db_pool.acquire() as conn:
+
+                already_rolled_back = await conn.fetchrow(
+                    "SELECT * from public.rollback_history WHERE assignment_id = $1",
+                    submission_id
+                )
+
+                if already_rolled_back:
+                    await interaction.response.send_message("❌ [ADMIN] This submission has already been rolled back once. Doing so again would cause problems.")
+                    return
+
                 assignment_to_add_back = await conn.fetchrow(
                     "SELECT * FROM public.tile_assignments WHERE id = $1",
                     submission_id
                 )
+
+                if assignment_to_add_back["category"] == 5:
+                    await interaction.response.send_message("You cannot rollback a flower basket tile assignment with this command. Please contact Tangy for major fix. <@726237123857874975>")
+                    return
+                
                 team = await conn.fetchrow(
                     "SELECT team_name FROM public.teams WHERE id = $1",
                     assignment_to_add_back["team_id"]
@@ -84,16 +99,14 @@ class AdminCog(commands.Cog):
                         assignment_to_add_back["category"]
                     )
 
-                    # Delete the submission too with the given submission_id
-                    # await conn.execute(
-                    #     "DELETE from public.tile_submissions WHERE tile_assignment_id = $1",
-                    #     submission_id
-                    # )
-                        
-
                     # Rollback the tile assignment with the given submission_id
                     await conn.execute(
                         "UPDATE public.tile_assignments SET is_active = true, remaining_submissions = 1 WHERE id = $1",
+                        submission_id
+                    )
+
+                    await conn.execute(
+                        "INSERT INTO public.rollback_history (assignment_id) VALUES ($1)",
                         submission_id
                     )
                 

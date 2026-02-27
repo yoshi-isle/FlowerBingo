@@ -11,6 +11,15 @@ async def get_team_tiles(conn: asyncpg.Connection, team_id):
             category,
         )
 
+        if not tile_assignment and category in [1, 2, 3, 4]:
+            names = {
+                1: "Wildflower (+10)",
+                2: "Rose (+50)",
+                3: "Tulip (+200)",
+                4: "Orchid (+400)",
+            }
+            raise ValueError(f"The team is missing a slot for category: {names[category]}. Use `/admin_force_spawn {names[category]}` to fix it. <@726237123857874975>")
+
         if tile_assignment:
             tile = await conn.fetchrow(
                 "SELECT * FROM public.tiles WHERE id = $1", tile_assignment["tile_id"]
