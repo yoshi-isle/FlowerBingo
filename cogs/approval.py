@@ -116,11 +116,11 @@ class ApprovalCog(commands.Cog):
                 "## **Tile complete!** 🎉 You feel a sense of accomplishment wash over you.",
             ]
             super_rare = [
-                "**TILE COMPLETE!** 🌸 You hear a faint 'Give me 20m' coming from a pink man with a mustache. (Rare message 1/100)",
-                "**LEGENDARY!** 🌸 Your team completed a tile AND got a 1/100 completion message.",
-                "**TILE COMPLETE!** 🌸 Nya nya nya nya nya nya nya. (Rare message 1/100)",
-                "**TILE DONE!** 🐐 THAT'S THE MF GOAT RIGHT THERE. THAT'S WHY THEY THE MF GOAT. (Rare message 1/100)",
-                "**TILE COMPLETE!** 🌸 You feel like you just won the lottery. (Rare message 1/100)",
+                "## **TILE COMPLETE!** 🌸 You hear a faint 'Give me 20m' coming from a pink man with a mustache. (Rare message 1/100)",
+                "## **LEGENDARY!** 🌸 Your team completed a tile AND got a 1/100 completion message.",
+                "## **TILE COMPLETE!** 🌸 Nya nya nya nya nya nya nya. (Rare message 1/100)",
+                "## **TILE DONE!** 🐐 THAT'S THE MF GOAT RIGHT THERE. THAT'S WHY THEY THE MF GOAT. (Rare message 1/100)",
+                "## **TILE COMPLETE!** 🌸 You feel like you just won the lottery. (Rare message 1/100)",
             ]
 
             if random.randint(1, 100) == 1:
