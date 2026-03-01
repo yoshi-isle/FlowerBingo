@@ -226,7 +226,7 @@ def generate_image(board, new_tile_index=None, is_flower_basket_active=False, fl
                 draw_text_with_shadow(
                     draw,
                     (1150, 610),
-                    "+999",
+                    "+1337",
                     header_font,
                     (206, 133, 255),  # pastel purple
                     title_stroke_width,
