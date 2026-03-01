@@ -29,6 +29,22 @@ async def assign_random_tile(conn: asyncpg.Connection, team_id: int, category: i
     # Extract tile IDs to exclude from the next assignment
     excluded_tile_ids = [record["tile_id"] for record in last_completed_tiles]
 
+    # Get all non-repeatable tiles that have been completed by this team
+    non_repeatable_completed = await conn.fetch(
+        """
+        SELECT DISTINCT ta.tile_id 
+        FROM public.tile_assignments ta
+        JOIN public.tiles t ON ta.tile_id = t.id
+        WHERE ta.team_id = $1 
+        AND ta.is_active = false 
+        AND t.non_repeatable = true
+        """,
+        team_id,
+    )
+    
+    # Add non-repeatable completed tiles to exclusion list
+    excluded_tile_ids.extend([record["tile_id"] for record in non_repeatable_completed])
+
     # Get a random tile for this category, excluding the last 3 completed
     tile = await _get_random_tile(conn, category, excluded_tile_ids)
 
