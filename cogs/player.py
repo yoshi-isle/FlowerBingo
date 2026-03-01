@@ -149,7 +149,7 @@ class PlayerCog(commands.Cog):
         player_team_channel = self.bot.get_channel(int(__player_channel_id))
         admin_channel = self.bot.get_channel(int(__submission_channel_id))
 
-        receipt_embed, submission_embed =   (interaction, tile, team, image)
+        receipt_embed, submission_embed = get_submission_embed(interaction, tile, team, image)
 
         __player_embed_message = await player_team_channel.send(embed=receipt_embed)
         __admin_embed_message = await admin_channel.send(embed=submission_embed)
