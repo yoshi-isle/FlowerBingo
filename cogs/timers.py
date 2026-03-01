@@ -33,7 +33,7 @@ class TimersCog(commands.Cog):
                         UPDATE public.tile_assignments 
                         SET is_active=false, was_skipped=true
                         WHERE category=5 AND team_id=$1
-                        """, # Was skipped = just dont count it for 999 points. maybe improve
+                        """, # Was skipped = just dont count it for 1337 points. maybe improve
                         team["id"],
                     )
 
@@ -66,7 +66,7 @@ class TimersCog(commands.Cog):
                     except Exception as e:
                         print(f"Failed to unpin messages in {team_channel}: {e}")
 
-                    await team_channel.send(embed=Embed(description="🕐The flower basket event has expired."))
+                    await team_channel.send("## 🕐The flower basket event has expired. Better luck next time!")
                     team_embed, file = await get_board_payload(
                         self.bot.db_pool,
                         team_id=team["id"],

@@ -95,6 +95,36 @@ class ApprovalCog(commands.Cog):
                 self.users_in_progress.discard(payload.user_id)
 
     async def _handle_reaction(self, payload, is_approved=True, force_complete=False):
+        def _get_random_completion_message():
+            sample = [
+                "## **Tile complete**! 🎉 Nice one! They say you miss 100% of the tiles you don't take... wait, what?",
+                "## **Tile finished!** 🎉 Great job, team! Proud of you.",
+                "## **Tile complete!** 🎉 Keep up the momentum!",
+                "## **Tile done!** 🎉 You're on a roll!",
+                "## **Tile complete!** 🎉 Your team overcame the impawssible odds!",
+                "## **Tile cleared!** 🎉 You are a superstar! ⭐",
+                "## **Tile complete!** 🎉 The board is looking better already!",
+                "## **Tile finished!** 🎉 Your teamwork is paying off!",
+                "## **Tile complete!** 🎉 Keep those submissions coming!",
+                "## **Tile done!** 🎉 You're making great progress!",
+                "## **Tile cleared!** 🎉 On to the next one!",
+                "## **Tile complete!** 🎉 Give yourselves a pat on the back...",
+                "## **Tile finished!** 🎉 The gods of RNG smile upon you (for now).",
+                "## **Tile done!** 🎉 You hear a distant 'gratz!' from a passing adventurer.",
+                "## **Tile cleared!** 🎉 Someone shouts 'Gz!' in the distance.",
+                "## **Tile cleared!** 🎉 You hear a mechanism unlock... revealing a new tile... (wait, this isn't Super Kitty World)",
+            ]
+            super_rare = [
+                "**TILE COMPLETE!** 🌸 You hear a faint 'Give me 20m' coming from a pink man with a mustache. (Rare message 1/100)"
+                "**LEGENDARY!** 🌸 Your team completed a tile AND got a 1/100 completion message.",
+                "**TILE COMPLETE!** 🌸 Nya nya nya nya nya nya nya. (Rare message 1/100)",
+                "**TILE DONE!** 🐐 THAT'S THE MF GOAT RIGHT THERE. THAT'S WHY THEY THE MF GOAT. (Rare message 1/100)",
+            ]
+
+            if random.randint(1, 100) == 1:
+                return random.choice(super_rare)
+            return random.choice(sample)
+        
         admin_message = await self._fetch_admin_message(payload)
 
         if await self._submission_already_approved(payload.message_id):
@@ -126,7 +156,8 @@ class ApprovalCog(commands.Cog):
 
             # Note: The new tile generation has already happened at this point. This is solely for UX
             if updated_tile_assignment["remaining_submissions"] <= 0:
-                await team_channel.send(embed=discord.Embed(description=f"**Tile** complete! {Emojis.THUMBS_UP} Posting your new board..."))
+                
+                await team_channel.send(_get_random_completion_message())
                 # Unpin all previous messages
                 async for msg in team_channel.history(limit=100):
                     if msg.pinned:
@@ -147,7 +178,7 @@ class ApprovalCog(commands.Cog):
                     except Exception:
                         pass
             else:
-                await team_channel.send(embed=discord.Embed(description=f"Your team made progress on the tile. You still need {updated_tile_assignment['remaining_submissions']}."))
+                await team_channel.send(f"## Your team made progress on the tile. You still need {updated_tile_assignment['remaining_submissions']}.")
                 
 
         await self._update_admin_message(
@@ -163,7 +194,7 @@ class ApprovalCog(commands.Cog):
             player_message, is_approved, payload.member.display_name
         )
 
-        await admin_message.delete()
+        await admin_message.delete()    
 
     async def _fetch_admin_message(self, payload) -> discord.Message:
         channel = self.bot.get_channel(payload.channel_id)
@@ -262,7 +293,7 @@ class ApprovalCog(commands.Cog):
                             continue
 
                         if award_points:
-                            await team_channel.send(embed=discord.Embed(description="Another team completed the flower basket."))
+                            await team_channel.send("## Another team completed the flower basket. Better luck next time!")
                             # Unpin all previous messages
                             async for msg in team_channel.history(limit=100):
                                 if msg.pinned:
@@ -355,7 +386,7 @@ class ApprovalCog(commands.Cog):
                             if not team_channel:
                                 continue
 
-                            await team_channel.send(embed=discord.Embed(description="❗You have a funny feeling like a flower basket would have spawned.", color=discord.Color.red()))
+                            await team_channel.send("## ❗You have a funny feeling like a flower basket would have spawned.")
                         return False
 
                     flower_basket_tile = await conn.fetchrow(
@@ -439,7 +470,7 @@ class ApprovalCog(commands.Cog):
                 if not team_channel:
                     continue
 
-                await team_channel.send(embed=discord.Embed(description="🌸 A flower basket has spawned!"))
+                await team_channel.send("## 🌸 A flower basket has spawned!")
 
                 if skip_team_id is not None and team["id"] == skip_team_id:
                     continue

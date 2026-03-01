@@ -19,7 +19,7 @@ def get_submission_embed(interaction: discord.Interaction, tile, team, image) ->
     player_receipt.add_field(
         name="I'm submitting...", value=f"{tile['tile_name']}\n", inline=False
     )
-    player_receipt.set_image(url=image.url)
+    player_receipt.set_thumbnail(url=image.url)
 
     """
     Admin submission receipt
@@ -30,18 +30,17 @@ def get_submission_embed(interaction: discord.Interaction, tile, team, image) ->
         icon_url=interaction.user.display_avatar.url,
     )
     admin_receipt.add_field(
-        name="Status", value="🟡 Waiting for approval", inline=False
+        name="Submitted...", value=f"{tile['tile_name']}\n", inline=False
     )
     admin_receipt.add_field(
-        name="I'm submitting...", value=f"{tile['tile_name']}\n", inline=False
+        name="What counts?", value=tile["eligible_drops"], inline=False
     )
-
     admin_receipt.add_field(
         name="Team",
         value=f"{team['team_name']} {interaction.channel.jump_url}\n",
         inline=False,
     )
-    admin_receipt.set_image(url=image.url)
+    admin_receipt.set_thumbnail(url=image.url)
     admin_receipt.set_footer(text="")
 
     # Return both

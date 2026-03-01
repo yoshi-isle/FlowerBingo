@@ -18,7 +18,7 @@ def get_board_embed(team, board, reroll_timers, is_flower_basket_active, flower_
             url="https://oldschool.runescape.wiki/images/thumb/3rd_age_pickaxe_detail.png/300px-3rd_age_pickaxe_detail.png?0bf61"
         )
     embed.set_footer(text="Use /explain to see what counts")
-    points = [5,50,200,400,999]
+    points = [5,50,200,400,1337]
     board_len = min(4, len(board), len(reroll_timers))
     for i in range(board_len):
         embed.add_field(

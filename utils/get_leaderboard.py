@@ -32,7 +32,7 @@ async def get_leaderboard(conn: asyncpg.Connection):
             2: medium_points,
             3: hard_points,
             4: elite_points,
-            5: 999
+            5: 1337
         }
 
         rows = await conn.fetch(
@@ -49,7 +49,7 @@ async def get_leaderboard(conn: asyncpg.Connection):
                             WHEN 2 THEN $2
                             WHEN 3 THEN $3
                             WHEN 4 THEN $4
-                            WHEN 5 THEN 999
+                            WHEN 5 THEN 1337
                             ELSE 0
                         END
                         ELSE 0
