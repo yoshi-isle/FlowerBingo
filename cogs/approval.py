@@ -121,6 +121,7 @@ class ApprovalCog(commands.Cog):
                 "## **TILE COMPLETE!** 🌸 Nya nya nya nya nya nya nya. (Rare message 1/100)",
                 "## **TILE DONE!** 🐐 THAT'S THE MF GOAT RIGHT THERE. THAT'S WHY THEY THE MF GOAT. (Rare message 1/100)",
                 "## **TILE COMPLETE!** 🌸 You feel like you just won the lottery. (Rare message 1/100)",
+                "## **TILE COMPLETE!** 🌸 Make sure to DM Helen Feller a happy birthday. (Rare message 1/100)",
             ]
 
             if random.randint(1, 100) == 1:
