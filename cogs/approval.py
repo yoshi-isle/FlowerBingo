@@ -8,6 +8,7 @@ import random
 from constants import Emojis
 from utils.register_team import assign_random_tile
 from utils.get_board_payload import get_board_payload
+from utils.get_leaderboard import get_leaderboard
 import time
 
 
@@ -97,31 +98,32 @@ class ApprovalCog(commands.Cog):
     async def _handle_reaction(self, payload, is_approved=True, force_complete=False):
         def _get_random_completion_message():
             sample = [
-                "## **Tile complete**! 🎉 Nice one! They say you miss 100% of the tiles you don't take... wait, what?",
-                "## **Tile finished!** 🎉 Great job, team! Proud of you.",
-                "## **Tile complete!** 🎉 Keep up the momentum!",
-                "## **Tile done!** 🎉 You're on a roll!",
-                "## **Tile complete!** 🎉 Your team overcame the impawssible odds!",
-                "## **Tile cleared!** 🎉 You are a superstar! ⭐",
-                "## **Tile complete!** 🎉 The board is looking better already!",
-                "## **Tile finished!** 🎉 Your teamwork is paying off!",
-                "## **Tile complete!** 🎉 Keep those submissions coming!",
-                "## **Tile done!** 🎉 You're making great progress!",
-                "## **Tile cleared!** 🎉 On to the next one!",
-                "## **Tile complete!** 🎉 Give yourselves a pat on the back...",
-                "## **Tile finished!** 🎉 The gods of RNG smile upon you (for now).",
-                "## **Tile done!** 🎉 You hear a distant 'gratz!' from a passing adventurer.",
-                "## **Tile cleared!** 🎉 Someone shouts 'Gz!' in the distance.",
-                "## **Tile cleared!** 🎉 You hear a mechanism unlock... revealing a new tile... (wait, this isn't Super Kitty World)",
-                "## **Tile complete!** 🎉 You feel a sense of accomplishment wash over you.",
+                "**Tile complete**! Nice one! They say you miss 100% of the tiles you don't take... wait, what?",
+                "**Tile finished!** Great job, team! Proud of you.",
+                "**Tile complete!** Keep up the momentum!",
+                "**Tile done!** You're on a roll!",
+                "**Tile complete!** Your team overcame the impawssible odds!",
+                "**Tile cleared!** You are a superstar! ⭐",
+                "**Tile complete!** The board is looking better already!",
+                "**Tile finished!** Your teamwork is paying off!",
+                "**Tile complete!** Keep those submissions coming!",
+                "**Tile done!** You're making great progress!",
+                "**Tile cleared!** On to the next one!",
+                "**Tile complete!** Give yourselves a pat on the back...",
+                "**Tile finished!** The gods of RNG smile upon you (for now).",
+                "**Tile done!** You hear a distant 'gratz!' from a passing adventurer.",
+                "**Tile cleared!** Someone shouts 'Gz!' in the distance.",
+                "**Tile cleared!** You hear a mechanism unlock... revealing a new tile... (wait, this isn't Super Kitty World)",
+                "**Tile complete!** You feel a sense of accomplishment wash over you.",
             ]
             super_rare = [
-                "## **TILE COMPLETE!** 🌸 You hear a faint 'Give me 20m' coming from a pink man with a mustache. (Rare message 1/100)",
-                "## **LEGENDARY!** 🌸 Your team completed a tile AND got a 1/100 completion message.",
-                "## **TILE COMPLETE!** 🌸 Nya nya nya nya nya nya nya. (Rare message 1/100)",
-                "## **TILE DONE!** 🐐 THAT'S THE MF GOAT RIGHT THERE. THAT'S WHY THEY THE MF GOAT. (Rare message 1/100)",
-                "## **TILE COMPLETE!** 🌸 You feel like you just won the lottery. (Rare message 1/100)",
-                "## **TILE COMPLETE!** 🌸 Make sure to DM Helen Feller a happy birthday. (Rare message 1/100)",
+                "**TILE COMPLETE!** 🌸 You hear a faint 'Give me 20m' coming from a pink man with a mustache. (Rare message 1/100)",
+                "**LEGENDARY!** 🌸 Your team completed a tile AND got a 1/100 completion message.",
+                "**TILE COMPLETE!** 🌸 Nya nya nya nya nya nya nya. (Rare message 1/100)",
+                "**TILE DONE!** 🐐 THAT'S THE MF GOAT RIGHT THERE. THAT'S WHY THEY CALL THEM THE MF GOAT OF THE TEAM!!! (Rare message 1/100)",
+                "**TILE COMPLETE!** Lakers in 5. (Rare message 1/100)",
+                "**TILE COMPLETE!** 🌸 You feel like you just won the lottery. (Rare message 1/100)",
+                "**TILE COMPLETE!** 🌸 Make sure to DM Helen Feller a happy birthday. (Rare message 1/100)",
             ]
 
             if random.randint(1, 100) == 1:
@@ -157,10 +159,23 @@ class ApprovalCog(commands.Cog):
                 tile_submission_updated, force_complete
             )
 
+            tile_name = "Unknown tile"
+            tile_record = await self.bot.db_pool.fetchrow(
+                "SELECT tile_name FROM public.tiles WHERE id = $1",
+                updated_tile_assignment["tile_id"],
+            )
+            if tile_record and tile_record["tile_name"]:
+                tile_name = tile_record["tile_name"]
+
             # Note: The new tile generation has already happened at this point. This is solely for UX
             if updated_tile_assignment["remaining_submissions"] <= 0:
-                
-                await team_channel.send(_get_random_completion_message())
+                random_completion_message = _get_random_completion_message().removeprefix("## ").strip()
+                completion_message = f"### <a:check:1478601909802631330> `{tile_name}` - {random_completion_message}"
+
+                if bool(updated_tile_assignment.get("catchup", False)):
+                    completion_message += "\n <a:check:1478601909802631330> Your team was awarded a point bonus of 1.5x for this tile!"
+
+                await team_channel.send(completion_message)
                 # Unpin all previous messages
                 async for msg in team_channel.history(limit=100):
                     if msg.pinned:
@@ -181,7 +196,10 @@ class ApprovalCog(commands.Cog):
                     except Exception:
                         pass
             else:
-                await team_channel.send(f"## Your team made progress on the tile. You still need {updated_tile_assignment['remaining_submissions']}.")
+                await team_channel.send(
+                    f"### <a:check:1478601909802631330> Your team made progress on `{tile_name}`. "
+                    f"You still need `{updated_tile_assignment['remaining_submissions']}`."
+                )
                 
 
         await self._update_admin_message(
@@ -226,6 +244,46 @@ class ApprovalCog(commands.Cog):
             str(message_id),
         )
 
+    async def _should_apply_catchup(self, team_id: int, category: int) -> bool:
+        if category == 5:
+            return False
+
+        game_state = await self.bot.db_pool.fetchrow(
+            """
+            SELECT *
+            FROM public.global_game_states
+            ORDER BY id ASC
+            LIMIT 1
+            """
+        )
+
+        if not game_state or not bool(game_state["is_catchup_mech_active"]):
+            return False
+
+        leaderboard, _, _ = await get_leaderboard(self.bot.db_pool)
+        if not leaderboard:
+            return False
+
+        if len(leaderboard) < 7:
+            return False
+
+        sixth_place = leaderboard[5]
+        seventh_place = leaderboard[6]
+        fifth_place = leaderboard[4]
+
+        sixth_points = sixth_place["points"]
+        seventh_points = seventh_place["points"]
+        fifth_points = fifth_place["points"]
+
+        has_actual_sixth_and_seventh = (
+            fifth_points > sixth_points and sixth_points > seventh_points
+        )
+
+        if not has_actual_sixth_and_seventh:
+            return False
+
+        return team_id in (sixth_place["team_id"], seventh_place["team_id"])
+
     async def _update_tile_assignment(self, tile_submission, force_complete=False):
         """
         Update the tile assignment from the submission.
@@ -237,97 +295,106 @@ class ApprovalCog(commands.Cog):
             tile_submission["tile_assignment_id"],
         )
 
+        updated_tile_assignment = None
+
         if force_complete:
             updated_tile_assignment = await self.bot.db_pool.fetchrow(
                 "UPDATE public.tile_assignments SET remaining_submissions = 0 WHERE id = $1 RETURNING *",
                 tile_submission["tile_assignment_id"],
             )
 
-        if tile_assignment["remaining_submissions"] > 0:
+        elif tile_assignment["remaining_submissions"] > 0:
             updated_tile_assignment = await self.bot.db_pool.fetchrow(
                 "UPDATE public.tile_assignments SET remaining_submissions = remaining_submissions - 1 WHERE id = $1 RETURNING *",
                 tile_submission["tile_assignment_id"],
             )
 
-            if updated_tile_assignment["remaining_submissions"] <= 0:
-                await self.bot.db_pool.execute(
-                    "UPDATE public.tile_assignments SET is_active = false WHERE id = $1",
-                    tile_submission["tile_assignment_id"],
-                )
+        if not updated_tile_assignment:
+            return 0
 
-                # If they completed a flower basket
-                if updated_tile_assignment["category"] == 5:
-                    all_teams = await self.bot.db_pool.fetch(
-                    "SELECT id, discord_channel_id, team_name FROM public.teams WHERE discord_channel_id IS NOT NULL"
-                )
+        if updated_tile_assignment["remaining_submissions"] <= 0:
+            should_apply_catchup = await self._should_apply_catchup(
+                updated_tile_assignment["team_id"],
+                updated_tile_assignment["category"],
+            )
 
-                    for team in all_teams:
-                        # Remove flower basket from global config AND tile assignments worldwide
-                        award_points = team["id"] != updated_tile_assignment["team_id"]
-                        await self.bot.db_pool.fetch(
-                            """
-                            UPDATE public.tile_assignments 
-                            SET is_active=false, was_skipped=$1
-                            WHERE category=5 AND team_id=$2
-                            """,
-                            award_points,
-                            team["id"],
-                        )
+            updated_tile_assignment = await self.bot.db_pool.fetchrow(
+                "UPDATE public.tile_assignments SET is_active = false, catchup = $2 WHERE id = $1 RETURNING *",
+                tile_submission["tile_assignment_id"],
+                should_apply_catchup,
+            )
 
-                        # Update the first row from global_config
-                        await self.bot.db_pool.fetch(
-                            """
-                            UPDATE public.global_game_states
-                            SET is_flower_basket_active=false, flower_basket_expires=null
-                            WHERE id=0
-                            """
-                        )
+            # If they completed a flower basket
+            if updated_tile_assignment["category"] == 5:
+                all_teams = await self.bot.db_pool.fetch(
+                "SELECT id, discord_channel_id, team_name FROM public.teams WHERE discord_channel_id IS NOT NULL"
+            )
 
-                        team_channel = self.bot.get_channel(int(team["discord_channel_id"]))
-                        if team_channel is None:
-                            try:
-                                team_channel = await self.bot.fetch_channel(
-                                    int(team["discord_channel_id"])
-                                )
-                            except Exception:
-                                continue
-
-                        if not team_channel:
-                            continue
-
-                        if award_points:
-                            await team_channel.send("## Another team completed the flower basket. Better luck next time!")
-                            # Unpin all previous messages
-                            async for msg in team_channel.history(limit=100):
-                                if msg.pinned:
-                                    try:
-                                        await msg.unpin()
-                                    except Exception:
-                                        pass
-                            team_embed, file = await get_board_payload(
-                                self.bot.db_pool,
-                                team_id=team["id"],
-                                team=team
-                            )
-                            if team_embed and file:
-                                board_msg = await team_channel.send(embed=team_embed, file=file)
-                                try:
-                                    await board_msg.pin()
-                                except Exception:
-                                    pass
-                else:
-                    await self._roll_basket_chance(tile_assignment["category"], skip_team_id=tile_assignment["team_id"])
-
-                    # Generate a new tile
-                    await assign_random_tile(
-                        self.bot.db_pool,
-                        tile_assignment["team_id"],
-                        tile_assignment["category"],
+                for team in all_teams:
+                    # Remove flower basket from global config AND tile assignments worldwide
+                    award_points = team["id"] != updated_tile_assignment["team_id"]
+                    await self.bot.db_pool.fetch(
+                        """
+                        UPDATE public.tile_assignments 
+                        SET is_active=false, was_skipped=$1
+                        WHERE category=5 AND team_id=$2
+                        """,
+                        award_points,
+                        team["id"],
                     )
 
-            return updated_tile_assignment
+                    # Update the first row from global_config
+                    await self.bot.db_pool.fetch(
+                        """
+                        UPDATE public.global_game_states
+                        SET is_flower_basket_active=false, flower_basket_expires=null
+                        WHERE id=0
+                        """
+                    )
 
-        return 0
+                    team_channel = self.bot.get_channel(int(team["discord_channel_id"]))
+                    if team_channel is None:
+                        try:
+                            team_channel = await self.bot.fetch_channel(
+                                int(team["discord_channel_id"])
+                            )
+                        except Exception:
+                            continue
+
+                    if not team_channel:
+                        continue
+
+                    if award_points:
+                        await team_channel.send("## Another team completed the flower basket. Better luck next time!")
+                        # Unpin all previous messages
+                        async for msg in team_channel.history(limit=100):
+                            if msg.pinned:
+                                try:
+                                    await msg.unpin()
+                                except Exception:
+                                    pass
+                        team_embed, file = await get_board_payload(
+                            self.bot.db_pool,
+                            team_id=team["id"],
+                            team=team
+                        )
+                        if team_embed and file:
+                            board_msg = await team_channel.send(embed=team_embed, file=file)
+                            try:
+                                await board_msg.pin()
+                            except Exception:
+                                pass
+            else:
+                await self._roll_basket_chance(tile_assignment["category"], skip_team_id=tile_assignment["team_id"])
+
+                # Generate a new tile
+                await assign_random_tile(
+                    self.bot.db_pool,
+                    tile_assignment["team_id"],
+                    tile_assignment["category"],
+                )
+
+        return updated_tile_assignment
 
     async def _roll_basket_chance(self, category: int, skip_team_id=None):
         config_names_by_category = {
@@ -536,7 +603,7 @@ class ApprovalCog(commands.Cog):
         )
         player_embed.set_field_at(
             0,
-            name=f"{Emojis.THUMBS_UP if is_approved else '❌'} {'Approved' if is_approved else 'Denied'} by {approver_name}",
+            name=f"{Emojis.THUMBS_UP if is_approved else '❌'} {'Approved' if is_approved else 'Denied'}",
             value="",
             inline=False,
         )

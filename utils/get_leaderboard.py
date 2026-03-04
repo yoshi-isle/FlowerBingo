@@ -45,10 +45,10 @@ async def get_leaderboard(conn: asyncpg.Connection):
                         WHEN ta.is_active = false
                              AND COALESCE(ta.was_skipped, false) = false
                         THEN CASE ta.category
-                            WHEN 1 THEN $1
-                            WHEN 2 THEN $2
-                            WHEN 3 THEN $3
-                            WHEN 4 THEN $4
+                            WHEN 1 THEN $1 * CASE WHEN COALESCE(ta.catchup, false) = true THEN 1.5 ELSE 1 END
+                            WHEN 2 THEN $2 * CASE WHEN COALESCE(ta.catchup, false) = true THEN 1.5 ELSE 1 END
+                            WHEN 3 THEN $3 * CASE WHEN COALESCE(ta.catchup, false) = true THEN 1.5 ELSE 1 END
+                            WHEN 4 THEN $4 * CASE WHEN COALESCE(ta.catchup, false) = true THEN 1.5 ELSE 1 END
                             WHEN 5 THEN 1337
                             ELSE 0
                         END
