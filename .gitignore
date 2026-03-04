@@ -79,3 +79,5 @@ Analytics/bin/Debug/net10.0/appsettings.json
 Analytics/bin/Debug/net10.0/Microsoft.AspNetCore.OpenApi.dll
 Analytics/bin/Debug/net10.0/Microsoft.OpenApi.dll
 Analytics/bin/Debug/net10.0/Npgsql.dll
+Analytics/obj/Debug/net10.0/compressed/0plfx5dz5o-{0}-b4579p92pz-b4579p92pz.gz
+Analytics/obj/Debug/net10.0/compressed/0plfx5dz5o-{0}-rofso8ju55-rofso8ju55.gz

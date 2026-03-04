@@ -78,10 +78,11 @@
                 <th class="px-4 py-2 text-right" title="Completed tiles">✅</th>
                 <th class="px-4 py-2 text-right" title="Active tiles">⚡</th>
                 <th class="px-4 py-2 text-right" title="Catchup bonus tiles">🔃</th>
+                <th class="px-4 py-2 text-right" title="Tiles rerolled">🎲</th>
               </tr>
             </thead>
             <tbody id="lb-body">
-              <tr><td colspan="6" class="text-center text-gray-600 py-8">Loading…</td></tr>
+              <tr><td colspan="7" class="text-center text-gray-600 py-8">Loading…</td></tr>
             </tbody>
           </table>
         </div>
@@ -119,6 +120,43 @@
         </div>
       </div>
 
+    </div>
+
+    <!-- ── PLAYER STATS ──────────────────────────────────────────────────── -->
+    <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+      <div class="px-5 py-3 border-b border-gray-800 flex items-center justify-between">
+        <h2 class="font-semibold text-sm tracking-wide uppercase text-gray-400">⚔️ Player Stats</h2>
+        <div class="flex items-center gap-2">
+          <label class="text-xs text-gray-500">Sort by
+            <select id="player-sort" class="ml-1 bg-gray-800 border border-gray-700 text-xs text-gray-300 rounded px-2 py-1" onchange="renderPlayerStats()">
+              <option value="approvals">Approvals</option>
+              <option value="total_submissions">Submissions</option>
+              <option value="denials">Denials</option>
+              <option value="rerolls">Rerolls</option>
+            </select>
+          </label>
+          <label class="text-xs text-gray-500">
+            <input type="checkbox" id="player-group-team" class="mr-1" onchange="renderPlayerStats()" checked /> Group by Team
+          </label>
+        </div>
+      </div>
+      <div class="overflow-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-xs text-gray-500 uppercase border-b border-gray-800">
+              <th class="px-4 py-2 text-left">Player</th>
+              <th class="px-4 py-2 text-left">Team</th>
+              <th class="px-4 py-2 text-right" title="Total submissions">📥 Submissions</th>
+              <th class="px-4 py-2 text-right" title="Approved">✅ Approved</th>
+              <th class="px-4 py-2 text-right" title="Denied">❌ Denied</th>
+              <th class="px-4 py-2 text-right" title="Tiles rerolled">🎲 Rerolls</th>
+            </tr>
+          </thead>
+          <tbody id="player-stats-body">
+            <tr><td colspan="6" class="text-center text-gray-600 py-8">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- ── POINTS OVER TIME CHART ──────────────────────────────────────── -->
@@ -313,6 +351,68 @@ function renderEvents() {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// Player Stats
+// ────────────────────────────────────────────────────────────────────────────
+let allPlayers = [];
+
+function renderPlayerStats() {
+  const sortKey   = document.getElementById('player-sort').value;
+  const groupTeam = document.getElementById('player-group-team').checked;
+  const body      = document.getElementById('player-stats-body');
+
+  if (!allPlayers.length) {
+    body.innerHTML = '<tr><td colspan="6" class="text-center text-gray-600 py-8">No player data yet.</td></tr>';
+    return;
+  }
+
+  const sorted = [...allPlayers].sort((a, b) => b[sortKey] - a[sortKey] || b.total_submissions - a.total_submissions);
+
+  if (!groupTeam) {
+    body.innerHTML = sorted.map(p => playerRow(p)).join('');
+    return;
+  }
+
+  // Group by team
+  const teamOrder = [];
+  const byTeam    = {};
+  sorted.forEach(p => {
+    if (!byTeam[p.team_name]) { byTeam[p.team_name] = []; teamOrder.push(p.team_name); }
+    byTeam[p.team_name].push(p);
+  });
+
+  body.innerHTML = teamOrder.map(team => {
+    const players = byTeam[team];
+    const header  = `<tr class="border-b border-gray-700">
+      <td colspan="6" class="px-4 py-1.5 text-xs font-bold text-gray-400 uppercase bg-gray-800/60">${escHtml(team)}</td>
+    </tr>`;
+    return header + players.map(p => playerRow(p, true)).join('');
+  }).join('');
+}
+
+function playerRow(p, inGroup = false) {
+  const nameCell = inGroup
+    ? `<td class="px-4 py-2 pl-6 text-gray-200 font-medium">${escHtml(p.display_name)}</td>
+       <td class="px-4 py-2 text-gray-500 text-xs">—</td>`
+    : `<td class="px-4 py-2 text-gray-200 font-medium">${escHtml(p.display_name)}</td>
+       <td class="px-4 py-2 text-gray-400 text-xs">${escHtml(p.team_name)}</td>`;
+
+  const approvalRate = p.total_submissions > 0
+    ? Math.round(p.approvals / p.total_submissions * 100)
+    : null;
+  const rateHtml = approvalRate !== null
+    ? `<span class="ml-1 text-xs text-gray-500">(${approvalRate}%)</span>`
+    : '';
+
+  return `<tr class="lb-row border-b border-gray-800/60">
+    ${nameCell}
+    <td class="px-4 py-2 text-right text-gray-300">${p.total_submissions}</td>
+    <td class="px-4 py-2 text-right text-green-400">${p.approvals}${rateHtml}</td>
+    <td class="px-4 py-2 text-right text-red-400">${p.denials}</td>
+    <td class="px-4 py-2 text-right text-orange-400">${p.rerolls}</td>
+  </tr>`;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // Points Chart
 // ────────────────────────────────────────────────────────────────────────────
 const CHART_COLORS = [
@@ -424,11 +524,12 @@ async function apiFetch(url) {
 async function loadAll() {
   setRefreshing(true);
   try {
-    const [stats, lb, events, history] = await Promise.all([
+    const [stats, lb, events, history, playerData] = await Promise.all([
       apiFetch('/api/stats'),
       apiFetch('/api/leaderboard'),
       apiFetch('/api/events?limit=300'),
       apiFetch('/api/point-history'),
+      apiFetch('/api/player-stats'),
     ]);
 
     // Badges
@@ -453,6 +554,9 @@ async function loadAll() {
     renderEvents();
 
     renderChart(history.series ?? {});
+
+    allPlayers = playerData.players ?? [];
+    renderPlayerStats();
 
     document.getElementById('last-refresh').textContent =
       `Last refreshed: ${new Date().toLocaleTimeString()}`;

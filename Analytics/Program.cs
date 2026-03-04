@@ -597,4 +597,55 @@ app.MapGet("/api/submission-heatmap", async (NpgsqlDataSource db) =>
     catch (Exception ex) { return Results.Json(new { error = ex.Message }, statusCode: 500); }
 });
 
+// ── GET /api/player-stats ─────────────────────────────────────────────────────
+// Per-player: submissions, approvals, denials, rerolls, team.
+// display_name is populated lazily when a player interacts with the bot.
+app.MapGet("/api/player-stats", async (NpgsqlDataSource db) =>
+{
+    try
+    {
+        await using var conn = await db.OpenConnectionAsync();
+        await using var cmd  = conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT
+                p.discord_id,
+                COALESCE(NULLIF(p.display_name, ''), p.discord_id)          AS display_name,
+                COALESCE(t.team_name, 'No Team')                            AS team_name,
+                COUNT(DISTINCT ts.id)                                       AS total_submissions,
+                COUNT(DISTINCT ts.id) FILTER (WHERE ts.is_approved = true)  AS approvals,
+                COUNT(DISTINCT ts.id) FILTER (
+                    WHERE ts.is_approved = false AND ts.updated_at IS NOT NULL
+                )                                                           AS denials,
+                COUNT(DISTINCT ta_r.id)                                     AS rerolls
+            FROM public.players p
+            LEFT JOIN public.teams t
+                ON t.id = p.team_id
+            LEFT JOIN public.tile_submissions ts
+                ON ts.player_id = p.id
+            LEFT JOIN public.tile_assignments ta_r
+                ON ta_r.rerolled_by_discord_id = p.discord_id
+            GROUP BY p.id, p.discord_id, p.display_name, t.team_name
+            ORDER BY approvals DESC, total_submissions DESC
+            """;
+
+        var rows = new List<object>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+        {
+            rows.Add(new
+            {
+                discord_id        = rdr.GetString(0),
+                display_name      = rdr.GetString(1),
+                team_name         = rdr.GetString(2),
+                total_submissions = rdr.GetInt64(3),
+                approvals         = rdr.GetInt64(4),
+                denials           = rdr.GetInt64(5),
+                rerolls           = rdr.GetInt64(6),
+            });
+        }
+        return Results.Ok(new { players = rows });
+    }
+    catch (Exception ex) { return Results.Json(new { error = ex.Message }, statusCode: 500); }
+});
+
 app.Run();

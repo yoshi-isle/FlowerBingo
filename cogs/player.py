@@ -221,6 +221,16 @@ class PlayerCog(commands.Cog):
             admin_embed_id=__admin_embed_message.id,
         )
 
+        # Lazily cache the Discord display name for analytics dashboards
+        try:
+            await self.bot.db_pool.execute(
+                "UPDATE public.players SET display_name=$1 WHERE discord_id=$2",
+                interaction.user.display_name,
+                str(interaction.user.id),
+            )
+        except Exception as e:
+            print(f"[warn] Could not cache display_name for {interaction.user.id}: {e}")
+
         # +5 tiles (category 1) are approved automatically.
         if option == 1:
             asyncio.create_task(
@@ -356,9 +366,17 @@ class PlayerCog(commands.Cog):
             async with self.bot.db_pool.acquire() as conn:
                 async with conn.transaction():
                     await conn.fetchrow(
-                        "UPDATE public.tile_assignments SET is_active=False, was_skipped=True WHERE id=$1",
+                        "UPDATE public.tile_assignments SET is_active=False, was_skipped=True, rerolled_by_discord_id=$2 WHERE id=$1",
                         tile_assignment["id"],
+                        str(interaction.user.id),
                     )
+                    # Cache the player's display name for analytics
+                    rows_updated = await conn.execute(
+                        "UPDATE public.players SET display_name=$1 WHERE discord_id=$2",
+                        interaction.user.display_name,
+                        str(interaction.user.id),
+                    )
+                    print(f"[reroll] {interaction.user.display_name} ({interaction.user.id}) rerolled category {option} for team {team['id']} | display_name update: {rows_updated}")
                     await assign_random_tile(conn, team["id"], option)
                     await interaction.response.send_message(f"{interaction.user.display_name} Re-rolled the tile! Updating your board...")
 
