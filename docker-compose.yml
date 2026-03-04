@@ -12,5 +12,18 @@ services:
     command: python -u bot.py
     restart: unless-stopped
 
+  analytics:
+    build:
+      context: ./Analytics
+      dockerfile: Dockerfile
+    container_name: flowerbingo-analytics
+    ports:
+      - "8080:8080"       # accessible at http://<your-machine-ip>:8080 on the LAN
+    environment:
+      - ConnectionStrings__Postgres=Host=${DB_HOST};Port=${DB_PORT};Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD};
+    env_file:
+      - .env
+    restart: unless-stopped
+
 volumes:
   flowerbingo_db_data:

@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🌸 FlowerBingo Analytics</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', system-ui, sans-serif; }
+    .badge { display:inline-block; padding:2px 8px; border-radius:9999px; font-size:.72rem; font-weight:600; letter-spacing:.02em; }
+    .event-submission { background:#1e3a5f; color:#93c5fd; }
+    .event-progress   { background:#3b2f0e; color:#fbbf24; }
+    .event-completed  { background:#14532d; color:#86efac; }
+    .event-denied     { background:#450a0a; color:#fca5a5; }
+    .event-skipped    { background:#1f2937; color:#9ca3af; }
+    .event-row:hover  { background: rgba(255,255,255,.04); }
+    .lb-row:hover     { background: rgba(255,255,255,.04); }
+    ::-webkit-scrollbar           { width:6px; height:6px; }
+    ::-webkit-scrollbar-track     { background:#111827; }
+    ::-webkit-scrollbar-thumb     { background:#374151; border-radius:3px; }
+    ::-webkit-scrollbar-thumb:hover { background:#4b5563; }
+    .chart-container { position:relative; }
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen">
+
+  <!-- ── HEADER ───────────────────────────────────────────────────────── -->
+  <header class="border-b border-gray-800 bg-gray-900 px-6 py-4 flex items-center justify-between sticky top-0 z-30">
+    <div class="flex items-center gap-3">
+      <span class="text-2xl">🌸</span>
+      <div>
+        <h1 class="text-lg font-bold tracking-tight">FlowerBingo Analytics</h1>
+        <p id="last-refresh" class="text-xs text-gray-500">Not yet loaded</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <span id="game-badge" class="badge bg-gray-800 text-gray-400 hidden">…</span>
+      <span id="catchup-badge" class="badge bg-purple-900 text-purple-300 hidden">Catchup Active 🔃</span>
+      <button id="refresh-btn"
+        class="flex items-center gap-2 bg-pink-600 hover:bg-pink-500 active:bg-pink-700 text-white font-semibold px-5 py-2 rounded-lg transition-colors text-sm shadow-lg shadow-pink-900/40"
+        onclick="loadAll()">
+        <svg id="refresh-icon" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12a9 9 0 1 1-3-6.7M21 3v6h-6"/>
+        </svg>
+        Refresh
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-screen-2xl mx-auto px-4 py-6 space-y-6">
+
+    <!-- ── STAT CARDS ─────────────────────────────────────────────────── -->
+    <section id="stats-grid" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+      <!-- filled by JS -->
+    </section>
+
+    <!-- ── LEADERBOARD + EVENTS ───────────────────────────────────────── -->
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+
+      <!-- Leaderboard -->
+      <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden flex flex-col">
+        <div class="px-5 py-3 border-b border-gray-800 flex items-center justify-between">
+          <h2 class="font-semibold text-sm tracking-wide uppercase text-gray-400">🏆 Leaderboard</h2>
+          <span id="lb-point-config" class="text-xs text-gray-600"></span>
+        </div>
+        <div class="overflow-auto flex-1">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-xs text-gray-500 uppercase border-b border-gray-800">
+                <th class="px-4 py-2 text-left w-8">#</th>
+                <th class="px-4 py-2 text-left">Team</th>
+                <th class="px-4 py-2 text-right">Points</th>
+                <th class="px-4 py-2 text-right" title="Completed tiles">✅</th>
+                <th class="px-4 py-2 text-right" title="Active tiles">⚡</th>
+                <th class="px-4 py-2 text-right" title="Catchup bonus tiles">🔃</th>
+              </tr>
+            </thead>
+            <tbody id="lb-body">
+              <tr><td colspan="6" class="text-center text-gray-600 py-8">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Event Log -->
+      <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden flex flex-col">
+        <div class="px-5 py-3 border-b border-gray-800 flex items-center justify-between">
+          <h2 class="font-semibold text-sm tracking-wide uppercase text-gray-400">📋 Event Log</h2>
+          <div class="flex items-center gap-2">
+            <select id="event-filter" class="bg-gray-800 border border-gray-700 text-xs text-gray-300 rounded px-2 py-1" onchange="renderEvents()">
+              <option value="all">All events</option>
+              <option value="completed">Completions only</option>
+              <option value="submission">Submissions only</option>
+              <option value="progress">Progress only</option>
+              <option value="denied">Denials only</option>
+            </select>
+            <span id="event-count" class="text-xs text-gray-600"></span>
+          </div>
+        </div>
+        <div class="overflow-auto flex-1 max-h-[520px]">
+          <table class="w-full text-xs">
+            <thead class="sticky top-0 bg-gray-900 z-10">
+              <tr class="text-gray-500 uppercase border-b border-gray-800">
+                <th class="px-3 py-2 text-left">Time</th>
+                <th class="px-3 py-2 text-left">Type</th>
+                <th class="px-3 py-2 text-left">Team</th>
+                <th class="px-3 py-2 text-left">Tile</th>
+              </tr>
+            </thead>
+            <tbody id="events-body">
+              <tr><td colspan="4" class="text-center text-gray-600 py-8">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── POINTS OVER TIME CHART ──────────────────────────────────────── -->
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-semibold text-sm tracking-wide uppercase text-gray-400">📈 Points Over Time</h2>
+        <div class="flex items-center gap-2">
+          <label class="text-xs text-gray-500">
+            <input type="checkbox" id="chart-smooth" class="mr-1" onchange="renderChart()" /> Smooth
+          </label>
+          <span id="chart-note" class="text-xs text-gray-600">Snapshotted every ~2 min by the leaderboard cog</span>
+        </div>
+      </div>
+      <div class="chart-container" style="height:320px">
+        <canvas id="points-chart"></canvas>
+      </div>
+      <p id="chart-empty" class="text-center text-gray-600 text-sm py-8 hidden">No point history data yet. The chart populates as the leaderboard cog runs.</p>
+    </div>
+
+  </main>
+
+  <!-- ── TOAST ─────────────────────────────────────────────────────────── -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 hidden">
+    <div class="bg-red-900 border border-red-700 text-red-200 text-sm px-4 py-3 rounded-lg shadow-xl max-w-xs"></div>
+  </div>
+
+<script>
+// ────────────────────────────────────────────────────────────────────────────
+// State
+// ────────────────────────────────────────────────────────────────────────────
+let allEvents = [];
+let pointsChart = null;
+
+const RANK_MEDALS = ['🥇','🥈','🥉'];
+
+// ────────────────────────────────────────────────────────────────────────────
+// Utilities
+// ────────────────────────────────────────────────────────────────────────────
+function fmt(dt) {
+  if (!dt) return '—';
+  return new Date(dt).toLocaleString(undefined, {
+    month:'short', day:'numeric',
+    hour:'2-digit', minute:'2-digit', second:'2-digit'
+  });
+}
+
+function fmtAgo(dt) {
+  if (!dt) return '';
+  const secs = Math.floor((Date.now() - new Date(dt)) / 1000);
+  if (secs < 60)  return `${secs}s ago`;
+  if (secs < 3600) return `${Math.floor(secs/60)}m ago`;
+  if (secs < 86400) return `${Math.floor(secs/3600)}h ago`;
+  return `${Math.floor(secs/86400)}d ago`;
+}
+
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.querySelector('div').textContent = msg;
+  el.classList.remove('hidden');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => el.classList.add('hidden'), 5000);
+}
+
+function setRefreshing(loading) {
+  const btn  = document.getElementById('refresh-btn');
+  const icon = document.getElementById('refresh-icon');
+  btn.disabled = loading;
+  if (loading) icon.classList.add('spin'); else icon.classList.remove('spin');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Stat cards
+// ────────────────────────────────────────────────────────────────────────────
+function renderStats(s) {
+  const cards = [
+    { label:'Teams',       value: s.total_teams,       icon:'👥', color:'text-blue-400'  },
+    { label:'Submissions', value: s.total_submissions, icon:'📥', color:'text-yellow-400'},
+    { label:'Approvals',   value: s.total_approvals,   icon:'✅', color:'text-green-400' },
+    { label:'Denials',     value: s.total_denials,     icon:'❌', color:'text-red-400'   },
+    { label:'Completions', value: s.total_completions, icon:'🏅', color:'text-pink-400'  },
+    { label:'Pending',     value: s.pending_submissions,icon:'⏳',color:'text-orange-400'},
+  ];
+
+  // Approval rate
+  const rate = s.total_submissions > 0
+    ? Math.round((Number(s.total_approvals) / Number(s.total_submissions)) * 100)
+    : 0;
+  cards.push({ label:'Approval Rate', value: rate + '%', icon:'📊', color:'text-teal-400' });
+
+  // Avg per team
+  const avg = s.total_teams > 0
+    ? Math.round(Number(s.total_completions) / Number(s.total_teams) * 10) / 10
+    : 0;
+  cards.push({ label:'Avg Comp/Team', value: avg, icon:'🧮', color:'text-violet-400' });
+
+  const grid = document.getElementById('stats-grid');
+  grid.innerHTML = cards.map(c => `
+    <div class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3">
+      <div class="text-xl mb-1">${c.icon}</div>
+      <div class="text-2xl font-bold ${c.color}">${c.value}</div>
+      <div class="text-xs text-gray-500 mt-0.5">${c.label}</div>
+    </div>
+  `).join('');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Leaderboard
+// ────────────────────────────────────────────────────────────────────────────
+function renderLeaderboard(data) {
+  const { leaderboard, point_config } = data;
+
+  document.getElementById('lb-point-config').textContent =
+    `🌼${point_config.easy} 🌹${point_config.medium} 🌷${point_config.hard} 🌸${point_config.elite} 🧺1337`;
+
+  const body = document.getElementById('lb-body');
+  if (!leaderboard.length) {
+    body.innerHTML = '<tr><td colspan="6" class="text-center text-gray-600 py-8">No teams found</td></tr>';
+    return;
+  }
+
+  body.innerHTML = leaderboard.map(t => {
+    const medal = RANK_MEDALS[t.rank - 1] ?? `<span class="text-gray-500">#${t.rank}</span>`;
+    const pointBar = leaderboard[0].points > 0
+      ? `<div class="w-full bg-gray-800 rounded-full h-1 mt-1.5">
+           <div class="bg-gradient-to-r from-pink-600 to-pink-400 h-1 rounded-full"
+                style="width:${Math.round(t.points/leaderboard[0].points*100)}%"></div>
+         </div>`
+      : '';
+    return `
+      <tr class="lb-row border-b border-gray-800/60 cursor-default">
+        <td class="px-4 py-3 text-lg">${medal}</td>
+        <td class="px-4 py-3">
+          <div class="font-medium text-gray-100">${escHtml(t.team_name)}</div>
+          ${pointBar}
+        </td>
+        <td class="px-4 py-3 text-right font-bold text-pink-300">${t.points.toLocaleString()}</td>
+        <td class="px-4 py-3 text-right text-green-400">${t.completed_tiles}</td>
+        <td class="px-4 py-3 text-right text-yellow-400">${t.active_tiles}</td>
+        <td class="px-4 py-3 text-right text-purple-400">${t.catchup_tiles}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Event Log
+// ────────────────────────────────────────────────────────────────────────────
+const EVENT_LABEL = {
+  submission: ['Submitted',  'event-submission'],
+  progress:   ['Progress',   'event-progress'  ],
+  completed:  ['Completed',  'event-completed' ],
+  denied:     ['Denied',     'event-denied'    ],
+  skipped:    ['Skipped',    'event-skipped'   ],
+};
+
+function renderEvents() {
+  const filter = document.getElementById('event-filter').value;
+  const visible = filter === 'all' ? allEvents : allEvents.filter(e => e.event_type === filter);
+
+  document.getElementById('event-count').textContent = `${visible.length} events`;
+
+  const body = document.getElementById('events-body');
+  if (!visible.length) {
+    body.innerHTML = '<tr><td colspan="4" class="text-center text-gray-600 py-8">No events</td></tr>';
+    return;
+  }
+
+  body.innerHTML = visible.map(e => {
+    const [label, cls] = EVENT_LABEL[e.event_type] ?? [e.event_type, 'event-skipped'];
+    return `
+      <tr class="event-row border-b border-gray-800/40 cursor-default" title="${fmt(e.event_time)}">
+        <td class="px-3 py-2 text-gray-500 whitespace-nowrap">${fmtAgo(e.event_time)}</td>
+        <td class="px-3 py-2 whitespace-nowrap"><span class="badge ${cls}">${label}</span></td>
+        <td class="px-3 py-2 text-gray-300 whitespace-nowrap">${escHtml(e.team_name)}</td>
+        <td class="px-3 py-2 text-gray-400">
+          ${e.category_emoji} <span class="text-gray-200">${escHtml(e.tile_name)}</span>
+          ${e.catchup ? '<span class="ml-1 badge bg-purple-900 text-purple-300">1.5×</span>' : ''}
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Points Chart
+// ────────────────────────────────────────────────────────────────────────────
+const CHART_COLORS = [
+  '#f472b6','#60a5fa','#34d399','#fbbf24','#a78bfa',
+  '#f87171','#2dd4bf','#fb923c','#c084fc','#4ade80',
+  '#facc15','#38bdf8','#e879f9','#a3e635','#f43f5e',
+];
+
+function renderChart(seriesData) {
+  if (seriesData !== undefined) renderChart._data = seriesData;
+  const data = renderChart._data ?? {};
+
+  const empty = document.getElementById('chart-empty');
+  const canvas = document.getElementById('points-chart');
+
+  const teams = Object.keys(data);
+  if (!teams.length) {
+    empty.classList.remove('hidden');
+    canvas.style.display = 'none';
+    return;
+  }
+  empty.classList.add('hidden');
+  canvas.style.display = '';
+
+  const smooth = document.getElementById('chart-smooth').checked;
+
+  const datasets = teams.map((name, i) => ({
+    label:           name,
+    data:            data[name].map(p => ({ x: new Date(p.date), y: p.points })),
+    borderColor:     CHART_COLORS[i % CHART_COLORS.length],
+    backgroundColor: CHART_COLORS[i % CHART_COLORS.length] + '22',
+    borderWidth:     2,
+    pointRadius:     data[name].length < 80 ? 3 : 0,
+    pointHoverRadius: 5,
+    tension:         smooth ? 0.35 : 0,
+    fill:            false,
+  }));
+
+  if (pointsChart) {
+    pointsChart.data.datasets = datasets;
+    pointsChart.options.elements.line.tension = smooth ? 0.35 : 0;
+    pointsChart.update('none');
+    return;
+  }
+
+  pointsChart = new Chart(canvas, {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive:          true,
+      maintainAspectRatio: false,
+      animation:           { duration: 300 },
+      interaction:         { mode:'index', intersect:false },
+      plugins: {
+        legend: {
+          labels: {
+            color: '#d1d5db',
+            boxWidth: 12,
+            padding: 16,
+            font: { size: 12 },
+          },
+        },
+        tooltip: {
+          backgroundColor: '#1f2937',
+          borderColor:     '#374151',
+          borderWidth:     1,
+          titleColor:      '#f3f4f6',
+          bodyColor:       '#d1d5db',
+          callbacks: {
+            title: items => fmt(items[0].parsed.x),
+            label: ctx  => ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()} pts`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          type:    'time',
+          time:    { tooltipFormat:'PPpp' },
+          grid:    { color:'#1f2937' },
+          ticks:   { color:'#6b7280', maxTicksLimit:10 },
+        },
+        y: {
+          grid:  { color:'#1f2937' },
+          ticks: { color:'#6b7280', callback: v => v.toLocaleString() },
+        },
+      },
+    },
+  });
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Data loading
+// ────────────────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+async function apiFetch(url) {
+  const r = await fetch(url);
+  const data = await r.json();
+  if (!r.ok || data.error) throw new Error(data.error ?? `HTTP ${r.status}`);
+  return data;
+}
+
+async function loadAll() {
+  setRefreshing(true);
+  try {
+    const [stats, lb, events, history] = await Promise.all([
+      apiFetch('/api/stats'),
+      apiFetch('/api/leaderboard'),
+      apiFetch('/api/events?limit=300'),
+      apiFetch('/api/point-history'),
+    ]);
+
+    // Badges
+    const gameBadge = document.getElementById('game-badge');
+    if (stats.game_running) {
+      gameBadge.textContent = '🟢 Game Running';
+      gameBadge.className = 'badge bg-green-900 text-green-300';
+    } else {
+      gameBadge.textContent = '🔴 Game Paused';
+      gameBadge.className = 'badge bg-red-900 text-red-300';
+    }
+    gameBadge.classList.remove('hidden');
+
+    const catchupBadge = document.getElementById('catchup-badge');
+    if (stats.catchup_active) catchupBadge.classList.remove('hidden');
+    else                       catchupBadge.classList.add('hidden');
+
+    renderStats(stats);
+    renderLeaderboard(lb);
+
+    allEvents = events.events ?? [];
+    renderEvents();
+
+    renderChart(history.series ?? {});
+
+    document.getElementById('last-refresh').textContent =
+      `Last refreshed: ${new Date().toLocaleTimeString()}`;
+  } catch (err) {
+    showToast('Failed to load data: ' + err.message);
+    console.error(err);
+  } finally {
+    setRefreshing(false);
+  }
+}
+
+// Load on page open
+loadAll();
+</script>
+</body>
+</html>
