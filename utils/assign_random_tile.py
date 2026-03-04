@@ -3,67 +3,70 @@ import asyncpg
 
 async def assign_random_tile(conn: asyncpg.Connection, team_id: int, category: int):
     """Assign a random tile to a team for the specified category, avoiding the last 3 completed tiles"""
-    # Check if team already has an active tile for this category
-    existing_assignment = await conn.fetchrow(
-        "SELECT * FROM public.tile_assignments WHERE team_id = $1 AND category = $2 AND is_active = $3",
-        team_id,
-        category,
-        True,
-    )
+    async with conn.transaction():
+        await conn.execute("SELECT pg_advisory_xact_lock($1, $2)", int(team_id), int(category))
 
-    if existing_assignment:
-        raise ValueError(f"Team already has a tile assignment for category {category}")
+        # Check if team already has an active tile for this category
+        existing_assignment = await conn.fetchrow(
+            "SELECT * FROM public.tile_assignments WHERE team_id = $1 AND category = $2 AND is_active = $3",
+            team_id,
+            category,
+            True,
+        )
 
-    # Get the last 10 completed tiles for this team and category (k=10 approach)
-    last_completed_tiles = await conn.fetch(
-        """
-        SELECT tile_id FROM public.tile_assignments 
-        WHERE team_id = $1 AND category = $2 AND is_active = false 
-        ORDER BY created_at DESC 
-        LIMIT 10
-        """,
-        team_id,
-        category,
-    )
-    
-    # Extract tile IDs to exclude from the next assignment
-    excluded_tile_ids = [record["tile_id"] for record in last_completed_tiles]
+        if existing_assignment:
+            raise ValueError(f"Team already has a tile assignment for category {category}")
 
-    # Get all non-repeatable tiles that have been completed by this team
-    non_repeatable_completed = await conn.fetch(
-        """
-        SELECT DISTINCT ta.tile_id 
-        FROM public.tile_assignments ta
-        JOIN public.tiles t ON ta.tile_id = t.id
-        WHERE ta.team_id = $1 
-        AND ta.is_active = false 
-        AND t.non_repeatable = true
-        """,
-        team_id,
-    )
-    
-    # Add non-repeatable completed tiles to exclusion list
-    excluded_tile_ids.extend([record["tile_id"] for record in non_repeatable_completed])
+        # Get the last 10 completed tiles for this team and category (k=10 approach)
+        last_completed_tiles = await conn.fetch(
+            """
+            SELECT tile_id FROM public.tile_assignments 
+            WHERE team_id = $1 AND category = $2 AND is_active = false 
+            ORDER BY created_at DESC 
+            LIMIT 10
+            """,
+            team_id,
+            category,
+        )
+        
+        # Extract tile IDs to exclude from the next assignment
+        excluded_tile_ids = [record["tile_id"] for record in last_completed_tiles]
 
-    # Get a random tile for this category, excluding the last 3 completed
-    tile = await _get_random_tile(conn, category, excluded_tile_ids)
+        # Get all non-repeatable tiles that have been completed by this team
+        non_repeatable_completed = await conn.fetch(
+            """
+            SELECT DISTINCT ta.tile_id 
+            FROM public.tile_assignments ta
+            JOIN public.tiles t ON ta.tile_id = t.id
+            WHERE ta.team_id = $1 
+            AND ta.is_active = false 
+            AND t.non_repeatable = true
+            """,
+            team_id,
+        )
+        
+        # Add non-repeatable completed tiles to exclusion list
+        excluded_tile_ids.extend([record["tile_id"] for record in non_repeatable_completed])
 
-    # Create the tile assignment
-    tile_assignment = await conn.fetchrow(
-        """
-        INSERT INTO public.tile_assignments 
-        (team_id, tile_id, is_active, category, remaining_submissions, created_at)
-        VALUES ($1, $2, $3, $4, $5, NOW())
-        RETURNING *
-        """,
-        team_id,
-        tile["id"],
-        True,
-        tile["category"],
-        tile["completion_counter"],
-    )
+        # Get a random tile for this category, excluding the last 3 completed
+        tile = await _get_random_tile(conn, category, excluded_tile_ids)
 
-    return tile_assignment
+        # Create the tile assignment
+        tile_assignment = await conn.fetchrow(
+            """
+            INSERT INTO public.tile_assignments 
+            (team_id, tile_id, is_active, category, remaining_submissions, created_at)
+            VALUES ($1, $2, $3, $4, $5, NOW())
+            RETURNING *
+            """,
+            team_id,
+            tile["id"],
+            True,
+            tile["category"],
+            tile["completion_counter"],
+        )
+
+        return tile_assignment
 
 
 

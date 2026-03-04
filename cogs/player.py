@@ -154,18 +154,44 @@ class PlayerCog(commands.Cog):
         __player_embed_message = await player_team_channel.send(embed=receipt_embed)
         __admin_embed_message = await admin_channel.send(embed=submission_embed)
 
-        # Ping @here
-        await admin_channel.send(content="@here", delete_after=3)
+        try:
+            await create_submission(
+                conn=self.bot.db_pool,
+                discord_id=interaction.user.id,
+                category=option,
+                player_embed_id=__player_embed_message.id,
+                admin_embed_id=__admin_embed_message.id,
+            )
+        except Exception:
+            try:
+                await __player_embed_message.delete()
+            except Exception:
+                pass
+            try:
+                await __admin_embed_message.delete()
+            except Exception:
+                pass
+            await interaction.response.send_message(
+                "There was a problem saving your submission. Please try again.",
+                ephemeral=True,
+            )
+            return
 
-        await create_submission(
-            conn=self.bot.db_pool,
-            discord_id=interaction.user.id,
-            category=option,
-            player_embed_id=__player_embed_message.id,
-            admin_embed_id=__admin_embed_message.id,
-        )
+        if option == 1:
+            approval_cog = self.bot.get_cog("ApprovalCog")
+            if approval_cog:
+                await approval_cog.auto_approve_submission(
+                    __admin_embed_message.id,
+                    approver_name="Auto-Approval (Easy Tile)",
+                )
+                await interaction.response.send_message(
+                    f"Your easy tile submission was auto-approved! {Emojis.THUMBS_UP}",
+                    ephemeral=True,
+                )
+                return
 
         # Add reactions to admin embed
+        await admin_channel.send(content="@here", delete_after=3)
         await __admin_embed_message.add_reaction(Emojis.THUMBS_UP)
         await __admin_embed_message.add_reaction(Emojis.NO)
         await __admin_embed_message.add_reaction(Emojis.FORCE)

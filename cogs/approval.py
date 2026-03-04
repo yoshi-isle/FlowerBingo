@@ -95,7 +95,7 @@ class ApprovalCog(commands.Cog):
             async with self.cooldown_lock:
                 self.users_in_progress.discard(payload.user_id)
 
-    async def _handle_reaction(self, payload, is_approved=True, force_complete=False):
+    async def _handle_reaction(self, payload, is_approved=True, force_complete=False, approver_name=None):
         def _get_random_completion_message():
             sample = [
                 "**Tile complete**! Nice one! They say you miss 100% of the tiles you don't take... wait, what?",
@@ -150,6 +150,13 @@ class ApprovalCog(commands.Cog):
             payload.message_id, is_approved
         )
 
+        if not tile_submission_updated:
+            await admin_message.reply(
+                "⚠️ This submission was already processed.",
+                delete_after=3,
+            )
+            return
+
         team = await self._get_team_for_submission(tile_submission_updated)
         team_channel = self.bot.get_channel(int(team["discord_channel_id"]))
 
@@ -202,8 +209,13 @@ class ApprovalCog(commands.Cog):
                 )
                 
 
+        resolved_approver_name = approver_name
+        if not resolved_approver_name:
+            payload_member = getattr(payload, "member", None)
+            resolved_approver_name = getattr(payload_member, "display_name", "System")
+
         await self._update_admin_message(
-            admin_message, is_approved, payload.member.display_name, updated_tile_assignment
+            admin_message, is_approved, resolved_approver_name, updated_tile_assignment
         )
 
         # Get player message embed
@@ -212,10 +224,26 @@ class ApprovalCog(commands.Cog):
         )
 
         await self._update_player_message(
-            player_message, is_approved, payload.member.display_name
+            player_message, is_approved, resolved_approver_name
         )
 
-        await admin_message.delete()    
+        await admin_message.delete()
+
+    async def auto_approve_submission(self, admin_message_id: int, approver_name: str = "Auto-Approval"):
+        class _AutoApprovalPayload:
+            pass
+
+        payload = _AutoApprovalPayload()
+        payload.channel_id = self.pending_channel_id
+        payload.message_id = int(admin_message_id)
+        payload.member = None
+
+        await self._handle_reaction(
+            payload,
+            is_approved=True,
+            force_complete=False,
+            approver_name=approver_name,
+        )
 
     async def _fetch_admin_message(self, payload) -> discord.Message:
         channel = self.bot.get_channel(payload.channel_id)
@@ -239,7 +267,7 @@ class ApprovalCog(commands.Cog):
 
     async def _update_submission_status(self, message_id, is_approved):
         return await self.bot.db_pool.fetchrow(
-            "UPDATE public.tile_submissions SET is_approved = $1, updated_at = NOW() WHERE admin_receipt_message_id = $2 RETURNING *",
+            "UPDATE public.tile_submissions SET is_approved = $1, updated_at = NOW() WHERE admin_receipt_message_id = $2 AND updated_at IS NULL RETURNING *",
             is_approved,
             str(message_id),
         )
@@ -290,39 +318,52 @@ class ApprovalCog(commands.Cog):
 
         Returns the remaining submissions left for the assignment
         """
-        tile_assignment = await self.bot.db_pool.fetchrow(
-            "SELECT * FROM public.tile_assignments WHERE id = $1",
-            tile_submission["tile_assignment_id"],
-        )
-
+        tile_assignment = None
         updated_tile_assignment = None
 
-        if force_complete:
-            updated_tile_assignment = await self.bot.db_pool.fetchrow(
-                "UPDATE public.tile_assignments SET remaining_submissions = 0 WHERE id = $1 RETURNING *",
-                tile_submission["tile_assignment_id"],
-            )
+        async with self.bot.db_pool.acquire() as conn:
+            async with conn.transaction():
+                tile_assignment = await conn.fetchrow(
+                    "SELECT * FROM public.tile_assignments WHERE id = $1 FOR UPDATE",
+                    tile_submission["tile_assignment_id"],
+                )
 
-        elif tile_assignment["remaining_submissions"] > 0:
-            updated_tile_assignment = await self.bot.db_pool.fetchrow(
-                "UPDATE public.tile_assignments SET remaining_submissions = remaining_submissions - 1 WHERE id = $1 RETURNING *",
-                tile_submission["tile_assignment_id"],
-            )
+                if not tile_assignment:
+                    return 0
 
-        if not updated_tile_assignment:
-            return 0
+                if force_complete and tile_assignment["remaining_submissions"] > 0:
+                    updated_tile_assignment = await conn.fetchrow(
+                        "UPDATE public.tile_assignments SET remaining_submissions = 0 WHERE id = $1 RETURNING *",
+                        tile_submission["tile_assignment_id"],
+                    )
+                elif tile_assignment["remaining_submissions"] > 0:
+                    updated_tile_assignment = await conn.fetchrow(
+                        "UPDATE public.tile_assignments SET remaining_submissions = remaining_submissions - 1 WHERE id = $1 AND remaining_submissions > 0 RETURNING *",
+                        tile_submission["tile_assignment_id"],
+                    )
+                else:
+                    updated_tile_assignment = tile_assignment
+
+                if not updated_tile_assignment:
+                    return 0
 
         if updated_tile_assignment["remaining_submissions"] <= 0:
+            if not tile_assignment["is_active"]:
+                return updated_tile_assignment
+
             should_apply_catchup = await self._should_apply_catchup(
                 updated_tile_assignment["team_id"],
                 updated_tile_assignment["category"],
             )
 
             updated_tile_assignment = await self.bot.db_pool.fetchrow(
-                "UPDATE public.tile_assignments SET is_active = false, catchup = $2 WHERE id = $1 RETURNING *",
+                "UPDATE public.tile_assignments SET is_active = false, catchup = $2 WHERE id = $1 AND is_active = true RETURNING *",
                 tile_submission["tile_assignment_id"],
                 should_apply_catchup,
             )
+
+            if not updated_tile_assignment:
+                return tile_assignment
 
             # If they completed a flower basket
             if updated_tile_assignment["category"] == 5:
