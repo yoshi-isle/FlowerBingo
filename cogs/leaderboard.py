@@ -50,7 +50,7 @@ class LeaderboardCog(commands.Cog):
                 rank_str = medal
             else:
                 rank_str = f"#{display_rank}"
-            lines.append(f"**{rank_str}** {team_name} — **{points} pts**")
+            lines.append(f"**{rank_str}** {team_name}")
             prev_points = points
 
         embed.description = "\n".join(lines)
