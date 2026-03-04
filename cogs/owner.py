@@ -1,18 +1,41 @@
 import discord
+from discord.abc import GuildChannel
 from discord import app_commands
 from discord.ext import commands
 
 
 from constants import Emojis
-from utils.get_board_payload import get_board_payload
 from utils.get_team_record import get_team_record
-from utils.register_team import assign_random_tile
 from utils.register_team import register_team
 
 
 class OwnerCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        is_running = await self.bot.db_pool.fetchval(
+            """
+            SELECT COALESCE(is_game_running, false)
+            FROM public.global_game_states
+            ORDER BY id ASC
+            LIMIT 1
+            """
+        )
+        if bool(is_running):
+            return True
+
+        if interaction.response.is_done():
+            await interaction.followup.send(
+                "The game is not running yet. The game will start <t:1772841600:R>",
+                ephemeral=True,
+            )
+        else:
+            await interaction.response.send_message(
+                "The game is not running yet. The game will start <t:1772841600:R>",
+                ephemeral=True,
+            )
+        return False
 
     @app_commands.command(
         name="owner_register_team", description="[OWNER] Register a new team (IN THIS CHANNEL)"
@@ -31,41 +54,37 @@ class OwnerCog(commands.Cog):
         except Exception as e:
             await interaction.response.send_message(f"Database error: {str(e)}")
 
-    async def team_autocomplete(self, interaction: discord.Interaction, current: str):
-        """
-        Autocomplete callback for team names
-        """
-        try:
-            async with self.bot.db_pool.acquire() as conn:
-                rows = await conn.fetch(
-                    "SELECT team_name FROM public.teams WHERE team_name ILIKE $1",
-                    f"%{current}%",
-                )
-                return [
-                    app_commands.Choice(name=row["team_name"], value=row["team_name"])
-                    for row in rows
-                ]
-        except Exception:
-            return []
-
     @app_commands.command(
-        name="owner_register_player", description="[OWNER] Register a player to a team"
+        name="owner_register_player",
+        description="[OWNER] Register a player to the team for this channel",
     )
     @app_commands.checks.has_permissions(administrator=True)
-    @app_commands.autocomplete(team_name=team_autocomplete)
     async def owner_register_player(
-        self, interaction: discord.Interaction, player: discord.User, team_name: str
+        self, interaction: discord.Interaction, player: discord.User
     ):
         try:
+            if not interaction.guild:
+                await interaction.response.send_message(
+                    "This command can only be used in a server channel."
+                )
+                return
+
+            if not isinstance(interaction.channel, GuildChannel):
+                await interaction.response.send_message(
+                    "This command must be used in a standard server channel."
+                )
+                return
+
             async with self.bot.db_pool.acquire() as conn:
-                # Get team_id from team_name
+                # Get team_id from current channel
                 team_row = await conn.fetchrow(
-                    "SELECT id FROM public.teams WHERE team_name = $1", team_name
+                    "SELECT id, team_name FROM public.teams WHERE discord_channel_id = $1",
+                    str(interaction.channel_id),
                 )
 
                 if not team_row:
                     await interaction.response.send_message(
-                        f"Team '{team_name}' not found."
+                        "No team is registered for this channel."
                     )
                     return
 
@@ -77,6 +96,7 @@ class OwnerCog(commands.Cog):
                     return
 
                 team_id = team_row["id"]
+                team_name = team_row["team_name"]
 
                 # Insert player into database
                 await conn.execute(
@@ -85,8 +105,15 @@ class OwnerCog(commands.Cog):
                     team_id,
                 )
 
+            await interaction.channel.set_permissions(
+                player,
+                view_channel=True,
+                send_messages=True,
+                read_message_history=True,
+            )
+
             await interaction.response.send_message(
-                f"{Emojis.THUMBS_UP} Player {player.mention} has been registered to team '{team_name}'."
+                f"{Emojis.THUMBS_UP} Player {player.mention} has been registered to team '{team_name}' and added to this channel."
             )
         except Exception as e:
             await interaction.response.send_message(f"Database error: {str(e)}")
@@ -99,6 +126,18 @@ class OwnerCog(commands.Cog):
         self, interaction: discord.Interaction, player: discord.User
     ):
         try:
+            if not interaction.guild:
+                await interaction.response.send_message(
+                    "This command can only be used in a server channel."
+                )
+                return
+
+            if not isinstance(interaction.channel, GuildChannel):
+                await interaction.response.send_message(
+                    "This command must be used in a standard server channel."
+                )
+                return
+
             async with self.bot.db_pool.acquire() as conn:
                 existing_team = await get_team_record(conn, str(player.id))
                 if not existing_team:
@@ -113,8 +152,10 @@ class OwnerCog(commands.Cog):
                     str(player.id),
                 )
 
+            await interaction.channel.set_permissions(player, overwrite=None)
+
             await interaction.response.send_message(
-                f"{Emojis.THUMBS_UP} Player {player.mention} has been unregistered from  their team '{existing_team['team_name']}'."
+                f"{Emojis.THUMBS_UP} Player {player.mention} has been unregistered from their team '{existing_team['team_name']}' and removed from this channel."
             )
         except Exception as e:
             await interaction.response.send_message(f"Database error: {str(e)}")

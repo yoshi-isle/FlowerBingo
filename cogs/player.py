@@ -1,4 +1,7 @@
 import os
+import asyncio
+import random
+from types import SimpleNamespace
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -21,6 +24,30 @@ class PlayerCog(commands.Cog):
         # Keeps track of reroll timers per index
         self.reroll_timers_by_difficulty = []
 
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        is_running = await self.bot.db_pool.fetchval(
+            """
+            SELECT COALESCE(is_game_running, false)
+            FROM public.global_game_states
+            ORDER BY id ASC
+            LIMIT 1
+            """
+        )
+        if bool(is_running):
+            return True
+
+        if interaction.response.is_done():
+            await interaction.followup.send(
+                "The game is not running yet. The game will start <t:1772841600:R>",
+                ephemeral=True,
+            )
+        else:
+            await interaction.response.send_message(
+                "The game is not running yet. The game will start <t:1772841600:R>",
+                ephemeral=True,
+            )
+        return False
+
     async def cog_load(self):
         self.reroll_timers_by_difficulty.append(await self.bot.db_pool.fetchval(
             "SELECT amount FROM global_configs WHERE name = 'easy_reroll_hours'"
@@ -34,6 +61,28 @@ class PlayerCog(commands.Cog):
         self.reroll_timers_by_difficulty.append(await self.bot.db_pool.fetchval(
             "SELECT amount FROM global_configs WHERE name = 'elite_reroll_hours'"
         ))
+
+    async def _delayed_auto_approve_submission(
+        self,
+        submission_channel_id: int,
+        admin_message_id: int,
+        member: discord.abc.User,
+    ):
+        try:
+            await asyncio.sleep(random.randint(4, 15))
+            approval_cog = self.bot.get_cog("ApprovalCog")
+            if approval_cog is None:
+                return
+
+            fake_payload = SimpleNamespace(
+                channel_id=submission_channel_id,
+                message_id=admin_message_id,
+                member=member,
+                is_auto_approved=True,
+            )
+            await approval_cog._handle_reaction(fake_payload, is_approved=True)
+        except Exception as e:
+            print(f"Error in delayed auto-approval: {e}")
 
     @app_commands.command(name="board", description="View the board for your team")
     async def board(self, interaction: discord.Interaction):
@@ -143,19 +192,26 @@ class PlayerCog(commands.Cog):
         )
 
         __submission_channel_id = os.getenv("PENDING_SUBMISSIONS_CHANNEL_ID")
+        __autoapproved_channel_id = os.getenv("AUTOAPPROVED_SUBMISSIONS_CHANNEL_ID")
         __player_channel_id = team["discord_channel_id"]
 
         # Get the relevant channels
         player_team_channel = self.bot.get_channel(int(__player_channel_id))
-        admin_channel = self.bot.get_channel(int(__submission_channel_id))
+        approval_channel_id = int(
+            __autoapproved_channel_id if option == 1 and __autoapproved_channel_id else __submission_channel_id
+        )
+        approval_channel = self.bot.get_channel(approval_channel_id)
+
+        if approval_channel is None:
+            await interaction.response.send_message(
+                "Error finding the submission channel. Please contact an admin."
+            )
+            return
 
         receipt_embed, submission_embed = get_submission_embed(interaction, tile, team, image)
 
         __player_embed_message = await player_team_channel.send(embed=receipt_embed)
-        __admin_embed_message = await admin_channel.send(embed=submission_embed)
-
-        # Ping @here
-        await admin_channel.send(content="@here", delete_after=3)
+        __admin_embed_message = await approval_channel.send(embed=submission_embed)
 
         await create_submission(
             conn=self.bot.db_pool,
@@ -164,6 +220,24 @@ class PlayerCog(commands.Cog):
             player_embed_id=__player_embed_message.id,
             admin_embed_id=__admin_embed_message.id,
         )
+
+        # +5 tiles (category 1) are approved automatically.
+        if option == 1:
+            asyncio.create_task(
+                self._delayed_auto_approve_submission(
+                    submission_channel_id=approval_channel_id,
+                    admin_message_id=__admin_embed_message.id,
+                    member=interaction.user,
+                )
+            )
+            await interaction.response.send_message(
+                f"Your submission has been sent! {Emojis.THUMBS_UP}",
+                ephemeral=True,
+            )
+            return
+
+        # Ping @here
+        await approval_channel.send(content="@here", delete_after=3)
 
         # Add reactions to admin embed
         await __admin_embed_message.add_reaction(Emojis.THUMBS_UP)

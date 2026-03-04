@@ -10,6 +10,45 @@ load_dotenv()
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
+GAME_NOT_RUNNING_MESSAGE = "The game is not running yet. The game will start <t:1772841600:R>"
+
+
+async def is_game_running() -> bool:
+    try:
+        async with bot.db_pool.acquire() as conn:
+            is_running = await conn.fetchval(
+                """
+                SELECT COALESCE(is_game_running, false)
+                FROM public.global_game_states
+                ORDER BY id ASC
+                LIMIT 1
+                """
+            )
+            return bool(is_running)
+    except Exception as e:
+        print(f"Error checking game state: {e}")
+        return False
+
+
+@bot.check
+async def global_prefix_command_check(ctx: commands.Context) -> bool:
+    if await is_game_running():
+        return True
+
+    await ctx.send(GAME_NOT_RUNNING_MESSAGE)
+    return False
+
+
+@bot.tree.interaction_check
+async def global_interaction_check(interaction: discord.Interaction) -> bool:
+    if await is_game_running():
+        return True
+
+    if interaction.response.is_done():
+        await interaction.followup.send(GAME_NOT_RUNNING_MESSAGE, ephemeral=True)
+    else:
+        await interaction.response.send_message(GAME_NOT_RUNNING_MESSAGE, ephemeral=True)
+    return False
 
 
 @bot.event

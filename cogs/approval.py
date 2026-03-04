@@ -24,6 +24,9 @@ class ApprovalCog(commands.Cog):
         self.bot = bot
         self.pending_channel_id = int(os.getenv("PENDING_SUBMISSIONS_CHANNEL_ID"))
         self.approved_channel_id = int(os.getenv("APPROVED_SUBMISSIONS_CHANNEL_ID"))
+        self.autoapproved_channel_id = int(
+            os.getenv("AUTOAPPROVED_SUBMISSIONS_CHANNEL_ID", self.approved_channel_id)
+        )
         self.denied_channel_id = int(os.getenv("DENIED_SUBMISSIONS_CHANNEL_ID"))
         self.accepted_reactions = [
             Emojis.THUMBS_UP,
@@ -42,6 +45,10 @@ class ApprovalCog(commands.Cog):
     @property
     def approved_channel(self):
         return self.bot.get_channel(self.approved_channel_id)
+
+    @property
+    def autoapproved_channel(self):
+        return self.bot.get_channel(self.autoapproved_channel_id)
 
     @property
     def denied_channel(self):
@@ -96,6 +103,8 @@ class ApprovalCog(commands.Cog):
                 self.users_in_progress.discard(payload.user_id)
 
     async def _handle_reaction(self, payload, is_approved=True, force_complete=False):
+        is_auto_approved = bool(getattr(payload, "is_auto_approved", False))
+
         def _get_random_completion_message():
             sample = [
                 "**Tile complete**! Nice one! They say you miss 100% of the tiles you don't take... wait, what?",
@@ -203,7 +212,11 @@ class ApprovalCog(commands.Cog):
                 
 
         await self._update_admin_message(
-            admin_message, is_approved, payload.member.display_name, updated_tile_assignment
+            admin_message,
+            is_approved,
+            payload.member.display_name,
+            updated_tile_assignment,
+            is_auto_approved,
         )
 
         # Get player message embed
@@ -568,7 +581,12 @@ class ApprovalCog(commands.Cog):
         )
 
     async def _update_admin_message(
-        self, admin_message: discord.Message, is_approved: bool, approver_name: str, updated_tile_assignment
+        self,
+        admin_message: discord.Message,
+        is_approved: bool,
+        approver_name: str,
+        updated_tile_assignment,
+        is_auto_approved: bool = False,
     ):
         admin_embed = admin_message.embeds[0].copy()
         admin_embed.color = (
@@ -589,7 +607,16 @@ class ApprovalCog(commands.Cog):
         else:
             admin_embed.set_footer(text="")
 
-        receipt_channel = self.approved_channel if is_approved else self.denied_channel
+        if is_approved:
+            receipt_channel = self.autoapproved_channel if is_auto_approved else self.approved_channel
+            if receipt_channel is None:
+                receipt_channel = self.approved_channel
+        else:
+            receipt_channel = self.denied_channel
+
+        if receipt_channel is None:
+            return
+
         # await receipt_channel.send(admin_embed.image.url)
         await receipt_channel.send(embed=admin_embed)
             

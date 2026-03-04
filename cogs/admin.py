@@ -11,6 +11,30 @@ class AdminCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        is_running = await self.bot.db_pool.fetchval(
+            """
+            SELECT COALESCE(is_game_running, false)
+            FROM public.global_game_states
+            ORDER BY id ASC
+            LIMIT 1
+            """
+        )
+        if bool(is_running):
+            return True
+
+        if interaction.response.is_done():
+            await interaction.followup.send(
+                "The game is not running yet. The game will start <t:1772841600:R>",
+                ephemeral=True,
+            )
+        else:
+            await interaction.response.send_message(
+                "The game is not running yet. The game will start <t:1772841600:R>",
+                ephemeral=True,
+            )
+        return False
+
     @app_commands.command(
         name="admin_force_spawn",
         description="[ADMIN] Force spawn a tile for the team in this channel if none exists.",
