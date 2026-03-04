@@ -182,7 +182,7 @@ class ApprovalCog(commands.Cog):
                 completion_message = f"### <a:check:1478601909802631330> `{tile_name}` - {random_completion_message}"
 
                 if bool(updated_tile_assignment.get("catchup", False)):
-                    completion_message += "\n <a:check:1478601909802631330> Your team was awarded a point bonus of 1.5x for this tile!"
+                    completion_message += "\n<a:check:1478601909802631330> Your team was awarded a point bonus of 1.5x for this tile!"
 
                 await team_channel.send(completion_message)
                 # Unpin all previous messages
