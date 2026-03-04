@@ -79,7 +79,7 @@ class AdminCog(commands.Cog):
 
                 tile_name = tile["tile_name"] if tile else "Unknown tile"
                 await interaction.followup.send(embed=discord.Embed(description=
-                    f"{Emojis.THUMBS_UP} Force spawned a random tile for {team['team_name']}: {tile_name}")
+                    f"Force spawned a random tile for {team['team_name']}: {tile_name}")
                 )
 
         except Exception as e:

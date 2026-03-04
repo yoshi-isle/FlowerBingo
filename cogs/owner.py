@@ -49,7 +49,7 @@ class OwnerCog(commands.Cog):
                 team_id = await register_team(conn, team_name, interaction.channel_id)
 
             await interaction.response.send_message(
-                f"{Emojis.THUMBS_UP} Team '{team_name}' (ID: {team_id}) has been registered with 4 random tiles by {interaction.user.mention}. This channel ID {interaction.channel_id} is used in their team record."
+                f"Team '{team_name}' (ID: {team_id}) has been registered with 4 random tiles by {interaction.user.mention}. This channel ID {interaction.channel_id} is used in their team record."
             )
         except Exception as e:
             await interaction.response.send_message(f"Database error: {str(e)}")
@@ -113,7 +113,7 @@ class OwnerCog(commands.Cog):
             )
 
             await interaction.response.send_message(
-                f"{Emojis.THUMBS_UP} Player {player.mention} has been registered to team '{team_name}' and added to this channel."
+                f"Player {player.mention} has been registered to team '{team_name}' and added to this channel."
             )
         except Exception as e:
             await interaction.response.send_message(f"Database error: {str(e)}")
@@ -155,7 +155,7 @@ class OwnerCog(commands.Cog):
             await interaction.channel.set_permissions(player, overwrite=None)
 
             await interaction.response.send_message(
-                f"{Emojis.THUMBS_UP} Player {player.mention} has been unregistered from their team '{existing_team['team_name']}' and removed from this channel."
+                f"Player {player.mention} has been unregistered from their team '{existing_team['team_name']}' and removed from this channel."
             )
         except Exception as e:
             await interaction.response.send_message(f"Database error: {str(e)}")
