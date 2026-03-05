@@ -175,5 +175,28 @@ class AdminCog(commands.Cog):
         except Exception as e:
             print(e)
 
+    @app_commands.command(name="admin_peek", description="[ADMIN] Privately view a board for the team in this channel (ephemeral, no pin).")
+    @app_commands.checks.has_permissions(manage_messages=True)
+    async def admin_peek(self, interaction: discord.Interaction):
+        try:
+            channel = interaction.channel
+            channel_id = channel.id
+            async with self.bot.db_pool.acquire() as conn:
+                team = await conn.fetchrow(
+                    "SELECT * FROM public.teams WHERE discord_channel_id = $1",
+                    str(channel_id)
+                )
+                if not team:
+                    await interaction.response.send_message("No team found for this channel.", ephemeral=True)
+                    return
+                team_embed, file = await get_board_payload(
+                    conn,
+                    team["id"],
+                    team=team,
+                )
+                await interaction.response.send_message(embed=team_embed, file=file, ephemeral=True)
+        except Exception as e:
+            print(e)
+
 async def setup(bot):
     await bot.add_cog(AdminCog(bot))
