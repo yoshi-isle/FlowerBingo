@@ -332,7 +332,7 @@ class ApprovalCog(commands.Cog):
             )
 
             updated_tile_assignment = await self.bot.db_pool.fetchrow(
-                "UPDATE public.tile_assignments SET is_active = false, catchup = $2 WHERE id = $1 RETURNING *",
+                "UPDATE public.tile_assignments SET is_active = false, catchup = $2, completion_time = NOW() WHERE id = $1 RETURNING *",
                 tile_submission["tile_assignment_id"],
                 should_apply_catchup,
             )

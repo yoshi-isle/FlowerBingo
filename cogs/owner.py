@@ -198,7 +198,24 @@ class OwnerCog(commands.Cog):
             await interaction.followup.send("Teams:\n- " + "\n- ".join(team_list))
         except Exception as e:
             await interaction.followup.send(f"Database error: {str(e)}")
-    
+
+    @app_commands.command(
+        name="owner_reset_reroll_timers",
+        description="[OWNER] Reset all reroll timers by setting created_at to NOW() for all tile assignments.",
+    )
+    @app_commands.checks.has_permissions(administrator=True)
+    async def owner_reset_reroll_timers(self, interaction: discord.Interaction):
+        try:
+            async with self.bot.db_pool.acquire() as conn:
+                result = await conn.execute(
+                    "UPDATE public.tile_assignments SET created_at = NOW()"
+                )
+            await interaction.response.send_message(
+                f"✅ All reroll timers have been reset. ({result})"
+            )
+        except Exception as e:
+            await interaction.response.send_message(f"Database error: {str(e)}")
+
 
 async def setup(bot):
     await bot.add_cog(OwnerCog(bot))
