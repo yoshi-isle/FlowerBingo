@@ -42,7 +42,7 @@ class AdminCog(commands.Cog):
     @app_commands.choices(difficulty=[app_commands.Choice(name="Wildflower (+5)", value=1),
                 app_commands.Choice(name="Rose (+50)", value=2),
                 app_commands.Choice(name="Tulip (+200)", value=3),
-                app_commands.Choice(name="Orchid (+400)", value=4),])
+                app_commands.Choice(name="Orchid (+500)", value=4),])
     
     async def force_spawn(self, interaction: discord.Interaction, difficulty: int):
         await interaction.response.defer(thinking=True)

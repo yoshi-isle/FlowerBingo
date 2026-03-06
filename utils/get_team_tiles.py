@@ -16,7 +16,7 @@ async def get_team_tiles(conn: asyncpg.Connection, team_id):
                 1: "Wildflower (+5)",
                 2: "Rose (+50)",
                 3: "Tulip (+200)",
-                4: "Orchid (+400)",
+                4: "Orchid (+500)",
             }
             raise ValueError(f"The team is missing a slot for category: {names[category]}. Use `/admin_force_spawn {names[category]}` to fix it. <@726237123857874975>")
 
