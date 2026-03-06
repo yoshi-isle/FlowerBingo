@@ -280,22 +280,22 @@ class ApprovalCog(commands.Cog):
         if len(leaderboard) < 7:
             return False
 
+        fifth_place = leaderboard[4]
         sixth_place = leaderboard[5]
         seventh_place = leaderboard[6]
-        fifth_place = leaderboard[4]
 
+        fifth_points = fifth_place["points"]
         sixth_points = sixth_place["points"]
         seventh_points = seventh_place["points"]
-        fifth_points = fifth_place["points"]
 
-        has_actual_sixth_and_seventh = (
+        has_actual_5th_6th_7th = (
             fifth_points > sixth_points and sixth_points > seventh_points
         )
 
-        if not has_actual_sixth_and_seventh:
+        if not has_actual_5th_6th_7th:
             return False
 
-        return team_id in (sixth_place["team_id"], seventh_place["team_id"])
+        return team_id in (fifth_place["team_id"], sixth_place["team_id"], seventh_place["team_id"])
 
     async def _update_tile_assignment(self, tile_submission, force_complete=False):
         """
