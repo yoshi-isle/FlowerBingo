@@ -15,7 +15,7 @@ def get_board_embed(team, board, reroll_timers, is_flower_basket_active, flower_
         embed.set_thumbnail(url=team['image_url'])
     else:
         embed.set_thumbnail(
-            url="https://oldschool.runescape.wiki/images/thumb/3rd_age_pickaxe_detail.png/300px-3rd_age_pickaxe_detail.png?0bf61"
+            url="https://oldschool.runescape.wiki/images/thumb/Red_flowers_detail.png/260px-Red_flowers_detail.png?99deb"
         )
     embed.set_footer(text="Use /explain to see what counts")
     points = [5,50,200,500,1337]
