@@ -125,10 +125,9 @@ class PlayerCog(commands.Cog):
                 board_msg = await interaction.channel.send(embed=team_embed, file=file)
                 await board_msg.pin()
 
+                # Only send a simple confirmation in the interaction response
                 await interaction.edit_original_response(
-                    content="Here's your updated board!",
-                    embed=team_embed,
-                    attachments=[file]
+                    content="Here's your updated board!"
                 )
         except Exception as e:
             print(f"Error getting board for {interaction.user.display_name}", e)
