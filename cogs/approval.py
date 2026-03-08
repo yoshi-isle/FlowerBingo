@@ -332,38 +332,39 @@ class ApprovalCog(commands.Cog):
             )
 
             updated_tile_assignment = await self.bot.db_pool.fetchrow(
-                "UPDATE public.tile_assignments SET is_active = false, catchup = $2, completion_time = NOW() WHERE id = $1 RETURNING *",
+                "UPDATE public.tile_assignments SET is_active = false, was_skipped = false, catchup = $2, completion_time = NOW() WHERE id = $1 RETURNING *",
                 tile_submission["tile_assignment_id"],
                 should_apply_catchup,
             )
 
             # If they completed a flower basket
             if updated_tile_assignment["category"] == 5:
+                flower_basket_tile_id = updated_tile_assignment["tile_id"]
                 all_teams = await self.bot.db_pool.fetch(
-                "SELECT id, discord_channel_id, team_name FROM public.teams WHERE discord_channel_id IS NOT NULL"
-            )
+                    "SELECT id, discord_channel_id, team_name FROM public.teams WHERE discord_channel_id IS NOT NULL"
+                )
+
+                await self.bot.db_pool.fetch(
+                    """
+                    UPDATE public.global_game_states
+                    SET is_flower_basket_active=false, flower_basket_expires=null
+                    WHERE id=0
+                    """
+                )
 
                 for team in all_teams:
-                    # Remove flower basket from global config AND tile assignments worldwide
-                    award_points = team["id"] != updated_tile_assignment["team_id"]
-                    await self.bot.db_pool.fetch(
-                        """
-                        UPDATE public.tile_assignments 
-                        SET is_active=false, was_skipped=$1
-                        WHERE category=5 AND team_id=$2
-                        """,
-                        award_points,
-                        team["id"],
-                    )
+                    is_winning_team = team["id"] == updated_tile_assignment["team_id"]
 
-                    # Update the first row from global_config
-                    await self.bot.db_pool.fetch(
-                        """
-                        UPDATE public.global_game_states
-                        SET is_flower_basket_active=false, flower_basket_expires=null
-                        WHERE id=0
-                        """
-                    )
+                    if not is_winning_team:
+                        await self.bot.db_pool.fetch(
+                            """
+                            UPDATE public.tile_assignments
+                            SET is_active=false, was_skipped=true
+                            WHERE category=5 AND team_id=$1 AND tile_id=$2 AND is_active=true
+                            """,
+                            team["id"],
+                            flower_basket_tile_id,
+                        )
 
                     team_channel = self.bot.get_channel(int(team["discord_channel_id"]))
                     if team_channel is None:
@@ -377,7 +378,7 @@ class ApprovalCog(commands.Cog):
                     if not team_channel:
                         continue
 
-                    if award_points:
+                    if not is_winning_team:
                         await team_channel.send("## Another team completed the flower basket. Better luck next time!")
                         # Unpin all previous messages
                         async for msg in team_channel.history(limit=100):

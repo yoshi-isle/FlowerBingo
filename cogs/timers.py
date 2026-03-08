@@ -21,29 +21,42 @@ class TimersCog(commands.Cog):
                 expires = expires.replace(tzinfo=timezone.utc)
             if datetime.now(timezone.utc) > expires:
 
+                active_flower_basket_tile = await self.bot.db_pool.fetchval(
+                    """
+                    SELECT tile_id
+                    FROM public.tile_assignments
+                    WHERE category = 5 AND is_active = true
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                    """
+                )
+
+                if active_flower_basket_tile is None:
+                    return
+
                 all_teams = await self.bot.db_pool.fetch(
                     "SELECT id, discord_channel_id, team_name FROM public.teams WHERE discord_channel_id IS NOT NULL"
                 )
 
-                for team in all_teams:
-                    
-                    # Remove flower basket from global config AND tile assignments worldwide
-                    await self.bot.db_pool.fetch(
-                        """
-                        UPDATE public.tile_assignments 
-                        SET is_active=false, was_skipped=true
-                        WHERE category=5 AND team_id=$1
-                        """, # Was skipped = just dont count it for 1337 points. maybe improve
-                        team["id"],
-                    )
+                await self.bot.db_pool.fetch(
+                    """
+                    UPDATE public.global_game_states
+                    SET is_flower_basket_active=false, flower_basket_expires=null
+                    WHERE id=0
+                    """
+                )
 
-                    # Update the first row from global_config
+                for team in all_teams:
+
+                    # Expire only the currently active flower basket tile for this team.
                     await self.bot.db_pool.fetch(
                         """
-                        UPDATE public.global_game_states
-                        SET is_flower_basket_active=false, flower_basket_expires=null
-                        WHERE id=0
-                        """
+                        UPDATE public.tile_assignments
+                        SET is_active=false, was_skipped=true
+                        WHERE category=5 AND team_id=$1 AND tile_id=$2 AND is_active=true
+                        """,
+                        team["id"],
+                        active_flower_basket_tile,
                     )
 
                     team_channel = self.bot.get_channel(int(team["discord_channel_id"]))
