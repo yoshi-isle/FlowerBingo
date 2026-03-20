@@ -39,7 +39,7 @@ def __build_tree__(self, features, classes, depth=0):
         for i in range(len(values) - 1):
             threshold = (values[i] + values[i + 1]) / 2.0
             left_mask = features[:, col] <= threshold
-            right_mask = ~left_mask
+            right_mask = features[:, col] > threshold
             if np.sum(left_mask) == 0 or np.sum(right_mask) == 0:
                 continue
             gain = gini_gain(classes, [classes[left_mask], classes[right_mask]])
@@ -47,6 +47,11 @@ def __build_tree__(self, features, classes, depth=0):
                 best_gain = gain
                 best_feature = col
                 best_threshold = threshold
+
+
+lambda best_feature, bf=best_feature, bt=best_threshold: best_feature[bf] <= bt,
+lambda feat, bf=best_feature, bt=best_threshold: feat[bf] <= bt,
+
 
     # No useful split found → leaf with majority class
     if best_feature is None:
