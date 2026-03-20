@@ -77,3 +77,59 @@ lambda feat, bf=best_feature, bt=best_threshold: feat[bf] <= bt,
     node.left = left_child
     node.right = right_child
     return node
+
+for col in range(features.shape[1]):
+    idx = self.sorted_indices[col]
+    sorted_x = features[idx, col]           # already sorted
+    sorted_y = classes[idx]
+
+    # skip constant features
+    if sorted_x[0] == sorted_x[-1]:
+        continue
+
+    # only consider splits between different classes
+    for i in range(len(sorted_x) - 1):
+        if sorted_y[i] == sorted_y[i + 1]:
+            continue   # same class → no gain possible here
+
+        threshold = (sorted_x[i] + sorted_x[i + 1]) / 2
+
+        # now count how many go left
+        # because data is sorted → left = 0 … i
+        n_left = i + 1
+        if n_left < 2 or (len(sorted_x) - n_left) < 2:
+            continue
+
+        # compute class counts left & right using cumulative or loop
+        # (you can keep your current gini_gain function)
+        gain = gini_gain(classes, classes[idx[:n_left]], classes[idx[n_left:]])
+
+        if gain > best_gain:
+            best_gain = gain
+            best_feature = col
+            best_threshold = threshold
+
+for col in range(features.shape[1]):
+    vals = features[:, col]
+    if np.ptp(vals) < 1e-8:   # almost constant
+        continue
+
+    # Option 1: quantiles
+    quantiles = np.quantile(vals, np.linspace(0.05, 0.95, 21))   # 20 split points
+
+    # Option 2: even simpler – 10–25 evenly spaced points
+    # bins = np.linspace(vals.min(), vals.max(), 26)[1:-1]
+
+    for threshold in quantiles:
+        go_left  = vals <= threshold
+        go_right = ~go_left
+
+        if np.sum(go_left) < 2 or np.sum(go_right) < 2:
+            continue
+
+        gain = gini_gain(classes, classes[go_left], classes[go_right])
+
+        if gain > best_gain:
+            best_gain    = gain
+            best_feature   = col
+            best_threshold = threshold
